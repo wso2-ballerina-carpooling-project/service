@@ -1,11 +1,54 @@
+
 import ballerina/http;
+import 'service.common;
+import 'service.firebase;
+import 'service.auth;
+import ballerina/io;
 
-// 
+string accessToken;
 
-service /api on new http:Listener(9090) {
-    resource function get helloWorld() returns string {
-        return "Hello World";
+
+function createSuccessResponse(int statusCode, json payload) returns http:Response {
+    http:Response response = new;
+    response.statusCode = statusCode;
+    response.setJsonPayload(payload);
+    return response;
+}
+
+// Helper function to create an error response
+function createErrorResponse(int statusCode, string message) returns http:Response {
+    http:Response response = new;
+    response.statusCode = statusCode;
+    response.setJsonPayload({
+        "status": "ERROR",
+        "message": message
+    });
+    return response;
+}  
+
+service /api on new http:Listener(9090){
+     function init() {
+        // Initialize Firebase credentials
+        common:GoogleCredentials credentials = {
+            serviceAccountJsonPath: "./service-account.json",
+            privateKeyFilePath: "./private.key",
+            tokenScope: "https://www.googleapis.com/auth/datastore"
+        };
+
+        accessToken = checkpanic firebase:generateAccessToken(credentials);
+        io:print(accessToken);
     }
+
+    resource function post register(@http:Payload json payload) returns http:Response|error {
+        http:Response|error response= auth:register(payload,accessToken);
+        return response;
+    }
+    resource function post login(@http:Payload json payload) returns http:Response|error {
+        http:Response|error response = auth:login(payload,accessToken);
+        return response;
+    }   
+ 
+
 }
 
 
