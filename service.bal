@@ -1,6 +1,5 @@
 
 import ballerina/http;
-import 'service.common;
 import 'service.firebase;
 import 'service.auth;
 import ballerina/io;
@@ -29,13 +28,7 @@ function createErrorResponse(int statusCode, string message) returns http:Respon
 service /api on new http:Listener(9090){
      function init() {
         // Initialize Firebase credentials
-        common:GoogleCredentials credentials = {
-            serviceAccountJsonPath: "./service-account.json",
-            privateKeyFilePath: "./private.key",
-            tokenScope: "https://www.googleapis.com/auth/datastore"
-        };
-
-        accessToken = checkpanic firebase:generateAccessToken(credentials);
+        accessToken = checkpanic firebase:generateAccessToken();
         io:print(accessToken);
     }
 

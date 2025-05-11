@@ -5,13 +5,13 @@ import ballerina/regex;
 
 
 import 'service.firebase_auth;
-import 'service.common;
+
 
 configurable string privateKeyFilePath = ?;
 configurable string tokenScope = ?;
 configurable firebase_auth:ServiceAccount serviceAccount = ?;
 
-public function generateAccessToken(common:GoogleCredentials credentials) returns string|error {
+public function generateAccessToken() returns string|error {
     firebase_auth:AuthConfig authConfig = {
         privateKeyPath: privateKeyFilePath,
         jwtConfig: {
