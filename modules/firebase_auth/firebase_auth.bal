@@ -4,13 +4,15 @@ import ballerina/log;
 import ballerina/oauth2;
 import ballerina/time;
 
+
+
 public const string PRIVATE_KEY_PATH = "private.key";
 
 public type ServiceAccount record {
     string 'type;
     string project_id;
     string private_key_id;
-    string private_key;
+    // string private_key;
     string client_email;
     string client_id;
     string auth_uri;
@@ -40,7 +42,7 @@ public type ClientError distinct error;
 
 public type AuthConfig record {
     # Service account file path
-    string serviceAccountPath;
+    readonly & ServiceAccount serviceAccount;
     # Firebase config
     readonly & FirebaseConfig? firebaseConfig = ();
     # JWT config
@@ -62,11 +64,11 @@ public client isolated class Client {
         self.firebaseConfig = ();
         self.jwtConfig = ();
         self.PRIVATE_KEY_PATH = PRIVATE_KEY_PATH;
-        self.serviceAccount = check self.getServiceAccount(authConfig.serviceAccountPath.cloneReadOnly());
+        self.serviceAccount = authConfig.serviceAccount;
         self.firebaseConfig = self.getFirebaseConfig(authConfig.firebaseConfig.cloneReadOnly());
         self.jwtConfig = authConfig.jwtConfig;
         self.PRIVATE_KEY_PATH = authConfig.privateKeyPath;
-        check self.createPrivateKey();
+        //check self.createPrivateKey();
         return;
     }
 
@@ -75,18 +77,18 @@ public client isolated class Client {
         return check serviceAccountFileInput.cloneWithType(ServiceAccount);
     }
 
-    isolated function createPrivateKey() returns error? {
-        lock {
-            ServiceAccount? serviceAccount = self.serviceAccount;
-            if serviceAccount is () {
-                return error("Service Account is not provided");
-            }
-            string[] privateKeyLine = re `\n`.split(serviceAccount.private_key);
-            stream<string, io:Error?> lineStream = privateKeyLine.toStream();
-            check io:fileWriteLinesFromStream(self.PRIVATE_KEY_PATH, lineStream);
-        }
+    // isolated function createPrivateKey() returns error? {
+    //     lock {
+    //         ServiceAccount? serviceAccount = self.serviceAccount;
+    //         if serviceAccount is () {
+    //             return error("Service Account is not provided");
+    //         }
+    //         string[] privateKeyLine = re `\n`.split(serviceAccount.private_key);
+    //         stream<string, io:Error?> lineStream = privateKeyLine.toStream();
+    //         check io:fileWriteLinesFromStream(self.PRIVATE_KEY_PATH, lineStream);
+    //     }
 
-    }
+    // }
 
     isolated function getFirebaseConfig(FirebaseConfig? firebaseConfig) returns FirebaseConfig|() {
         if (firebaseConfig is FirebaseConfig) {

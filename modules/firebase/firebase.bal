@@ -7,14 +7,18 @@ import ballerina/regex;
 import 'service.firebase_auth;
 import 'service.common;
 
+configurable string privateKeyFilePath = ?;
+configurable string tokenScope = ?;
+configurable firebase_auth:ServiceAccount serviceAccount = ?;
+
 public function generateAccessToken(common:GoogleCredentials credentials) returns string|error {
     firebase_auth:AuthConfig authConfig = {
-        privateKeyPath: credentials.privateKeyFilePath,
+        privateKeyPath: privateKeyFilePath,
         jwtConfig: {
             expTime: 3600,
-            scope: credentials.tokenScope
+            scope: tokenScope
         },
-        serviceAccountPath: credentials.serviceAccountJsonPath
+        serviceAccount: serviceAccount
     };
 
     firebase_auth:Client authClient = check new(authConfig);
