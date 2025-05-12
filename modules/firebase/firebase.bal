@@ -5,6 +5,7 @@ import ballerina/regex;
 
 
 import 'service.firebase_auth;
+import ballerina/io;
 
 
 configurable string privateKeyFilePath = ?;
@@ -55,7 +56,9 @@ public function createFirestoreDocument(
 
     request.setJsonPayload(payload);
 
-    // http:Response response = check firestoreClient->post("", request);
+    http:Response response = check firestoreClient->post("", request);
+
+    io:println(response);
     
    
 }
@@ -195,6 +198,8 @@ public function queryFirestoreDocuments(
     request.setJsonPayload(queryPayload);
     
     http:Response response = check firestoreClient->post("", request);
+
+    io:println("resposnessee" , response.getJsonPayload());
     
     if (response.statusCode == 200) {
         json[] responseArray = <json[]>check response.getJsonPayload();
@@ -220,6 +225,7 @@ public function queryFirestoreDocuments(
             }
         }
         
+        io:print(results);
         return results;
     } else {
         string errorBody = check response.getTextPayload();
