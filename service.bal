@@ -3,8 +3,14 @@ import ballerina/http;
 import 'service.firebase;
 import 'service.auth;
 import ballerina/io;
+import 'service.Map;
 
 string accessToken;
+
+type PlaceInfo record {
+    string description;
+    string place_id;
+};
 
 
 function createSuccessResponse(int statusCode, json payload) returns http:Response {
@@ -40,6 +46,35 @@ service /api on new http:Listener(9090){
         http:Response|error response = auth:login(payload,accessToken);
         return response;
     }   
+
+    resource function get direction() {
+        error? response = Map:getDirection();
+    }
+
+    resource function get searchLocation() {
+    string searchQuery = "Colombo";
+    io:println("Searching for places matching: '" + searchQuery + "'");
+    
+    PlaceInfo[]|error results = Map:searchSriLankaPlaces(searchQuery);
+    
+    if (results is PlaceInfo[]) {
+        io:println("\nFound " + results.length().toString() + " places matching '" + searchQuery + "':");
+        foreach PlaceInfo place in results {
+            io:println("- " + place.description + " (ID: " + place.place_id + ")");
+        }
+        
+        if (results.length() == 0) {
+            io:println("No places found. This could be due to:");
+            io:println("1. API key not having access to the Places API v1");
+            io:println("2. No matching places in Sri Lanka");
+            io:println("3. Network or API issues");
+            io:println("\nImportant: You need to enable the 'Places API' in your Google Cloud Console");
+            io:println("and ensure billing is set up for the project associated with your API key.");
+        }
+    } else {
+        io:println("Error searching places: " + results.message());
+    }
+    }
  
 
 }
