@@ -1,10 +1,13 @@
 import ballerina/http;
 import ballerina/io;
 import ballerina/url;
-import ballerina/log;
+// import ballerina/log;
 
 // Configuration for Google Maps Directions API
-string apiKey = "AIzaSyC8GlueGNwtpZjPUjF6SWnxUHyC5GA82KE"; // Replace with your Google Maps API key
+ // Replace with your Google Maps API key
+
+configurable string dirApiKey = ?;
+configurable string placeApiKey = ?;
 
 type PlaceInfo record {
     string description;
@@ -27,7 +30,7 @@ public function getDirection() returns error? {
         string encodedDestination = check url:encode(destination, "UTF-8");
         
         // Construct the request path with alternatives=true to get multiple routes
-        string path = string `/maps/api/directions/json?origin=${encodedOrigin}&destination=${encodedDestination}&mode=${mode}&alternatives=true&key=${apiKey}`;
+        string path = string `/maps/api/directions/json?origin=${encodedOrigin}&destination=${encodedDestination}&mode=${mode}&alternatives=true&key=${dirApiKey}`;
         
         // Make the API request
         json response = check directionsClient->get(path);
@@ -111,14 +114,10 @@ function removeHtmlTags(string htmlText) returns string {
     return result;
 }
 
-public function searchSriLankaPlaces(string query) returns PlaceInfo[]|error {
+public function searchSriLankaPlaces(string query) returns http:Response|error {
     // Return empty array if query is less than 3 characters
-    if (query.length() < 3) {
-        return [];
-    }
     
-    // API Key for Google Places API
-    string apiKey = "AIzaSyBJToHkeu0EhfzRM64HXhCg2lil_Kg9pSE"; // Replace with your actual API key
+    // API Key for Google Places API// Replace with your actual API key
     
     // Set up HTTP client configuration with reasonable timeouts
     http:ClientConfiguration clientConfig = {
@@ -156,42 +155,43 @@ public function searchSriLankaPlaces(string query) returns PlaceInfo[]|error {
     
     // Prepare headers
     map<string> headers = {
-        "X-Goog-Api-Key": apiKey,
+        "X-Goog-Api-Key": placeApiKey,
         "X-Goog-FieldMask": "places.displayName,places.id"
     };
     
     // Send the POST request
     io:println("Sending request to: " + path);
     http:Response response = check httpClient->post(path, requestPayload, headers);
+    return response;
     
     // Process the response
-    if (response.statusCode == 200) {
-        json payload = check response.getJsonPayload();
-        io:println("Response: " + payload.toString());
+    // if (response.statusCode == 200) {
+    //     json payload = check response.getJsonPayload();
+    //     io:println("Response: " + payload.toString());
         
-        PlaceInfo[] results = [];
+    //     PlaceInfo[] results = [];
         
-        // Check if places exist in the response
-        if payload.places is json[] {
-            json[] places = <json[]> check payload.places.ensureType();
+    //     // Check if places exist in the response
+    //     if payload.places is json[] {
+    //         json[] places = <json[]> check payload.places.ensureType();
             
-            foreach json place in places {
-                PlaceInfo placeInfo = {
-                    description: check place.displayName.text.ensureType(),
-                    place_id: check place.id.ensureType()
-                };
-                results.push(placeInfo);
-            }
-        }
+    //         foreach json place in places {
+    //             PlaceInfo placeInfo = {
+    //                 description: check place.displayName.text.ensureType(),
+    //                 place_id: check place.id.ensureType()
+    //             };
+    //             results.push(placeInfo);
+    //         }
+    //     }
         
-        return results;
-    } else {
-        string errorBody = check response.getTextPayload();
-        log:printError("API returned error status: " + response.statusCode.toString());
-        log:printError("Error details: " + errorBody);
-    }
+    //     return results;
+    // } else {
+    //     string errorBody = check response.getTextPayload();
+    //     log:printError("API returned error status: " + response.statusCode.toString());
+    //     log:printError("Error details: " + errorBody);
+    // }
     
-    // Return empty array if request fails
-    return [];
+    // // Return empty array if request fails
+    // return [];
 }
 

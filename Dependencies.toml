@@ -387,6 +387,7 @@ modules = [
 	{org = "nalaka", packageName = "service", moduleName = "service.common"},
 	{org = "nalaka", packageName = "service", moduleName = "service.firebase"},
 	{org = "nalaka", packageName = "service", moduleName = "service.firebase_auth"},
+	{org = "nalaka", packageName = "service", moduleName = "service.ride_management"},
 	{org = "nalaka", packageName = "service", moduleName = "service.utility"}
 ]
 
