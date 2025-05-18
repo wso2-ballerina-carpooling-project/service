@@ -1,11 +1,9 @@
 import 'service.Map;
 import 'service.auth;
 import 'service.firebase;
-
 import ballerina/http;
 import ballerina/io;
 
-string accessToken;
 
 type PlaceInfo record {
     string description;
@@ -31,20 +29,17 @@ function createErrorResponse(int statusCode, string message) returns http:Respon
 }
 
 service /api on new http:Listener(9090) {
-    function init() {
-        // Initialize Firebase credentials
-        accessToken = checkpanic firebase:generateAccessToken();
-        io:print(accessToken);
-    }
-
     resource function post register(@http:Payload json payload) returns http:Response|error {
+        string accessToken = checkpanic firebase:generateAccessToken();
         http:Response|error response = auth:register(payload, accessToken);
         return response;
     }
 
     resource function post login(@http:Payload json payload) returns http:Response|error {
+        string accessToken = checkpanic firebase:generateAccessToken();
         http:Response|error response = auth:login(payload, accessToken);
         return response;
+
     }
 
     resource function get direction() {
@@ -60,6 +55,13 @@ service /api on new http:Listener(9090) {
         http:Response|error results = Map:searchSriLankaPlaces(searchQuery);
         return results;
     }
+
+    // resource function get test() {
+    //     string token = checkpanic auth:generateLoginToken().ensureType();
+    //     io:println(token);
+    //     jwt:Payload|error payload = auth:verifyToken(token);
+    //     io:println(payload);
+    // }
 
 }
 

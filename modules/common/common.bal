@@ -22,3 +22,9 @@ public type vehicle record{|
     string vehicleRegNumber;
     int noOfSeat;
 |};
+
+
+public type rideDetails record {|
+    string rideId;
+    
+|};

@@ -11,4 +11,6 @@ generated/
 Config.toml
 
 private.key
+private-auth.key
+public.crt
 service-account.json
