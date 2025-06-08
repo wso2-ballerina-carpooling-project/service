@@ -266,6 +266,24 @@ function handleLocationUpdate(websocket:Caller caller, json message) returns web
         io:println("Latitude: " + latitude.toString());
         io:println("Longitude: " + longitude.toString());
         
+        string accessToken = checkpanic firebase:generateAccessToken();
+
+        map<json> DriverLocationData = {
+            "Driver ID" : driverId,
+            "Ride ID" : rideId,
+            "Latitude" : latitude,
+            "longitude" : longitude
+    };
+
+    // Store in Firestore
+        json|error createResult = firebase:createFirestoreDocument(
+                "carpooling-c6aa5",
+                accessToken,
+                "DriverLocation",
+                DriverLocationData
+        );
+
+        io:print(createResult);
         if parseResult.speed is decimal {
             io:println("Speed: " + parseResult.speed.toString() + " m/s");
         }
