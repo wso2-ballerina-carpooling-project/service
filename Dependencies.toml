@@ -351,29 +351,6 @@ modules = [
 ]
 
 [[package]]
-org = "ballerina"
-name = "websocket"
-version = "2.14.0"
-dependencies = [
-	{org = "ballerina", name = "auth"},
-	{org = "ballerina", name = "constraint"},
-	{org = "ballerina", name = "http"},
-	{org = "ballerina", name = "io"},
-	{org = "ballerina", name = "jballerina.java"},
-	{org = "ballerina", name = "jwt"},
-	{org = "ballerina", name = "lang.array"},
-	{org = "ballerina", name = "lang.runtime"},
-	{org = "ballerina", name = "lang.string"},
-	{org = "ballerina", name = "lang.value"},
-	{org = "ballerina", name = "log"},
-	{org = "ballerina", name = "oauth2"},
-	{org = "ballerina", name = "time"}
-]
-modules = [
-	{org = "ballerina", packageName = "websocket", moduleName = "websocket"}
-]
-
-[[package]]
 org = "ballerinai"
 name = "observe"
 version = "0.0.0"
@@ -401,7 +378,6 @@ dependencies = [
 	{org = "ballerina", name = "time"},
 	{org = "ballerina", name = "url"},
 	{org = "ballerina", name = "uuid"},
-	{org = "ballerina", name = "websocket"},
 	{org = "ballerinai", name = "observe"}
 ]
 modules = [
@@ -412,7 +388,6 @@ modules = [
 	{org = "nalaka", packageName = "service", moduleName = "service.firebase"},
 	{org = "nalaka", packageName = "service", moduleName = "service.firebase_auth"},
 	{org = "nalaka", packageName = "service", moduleName = "service.ride_management"},
-	{org = "nalaka", packageName = "service", moduleName = "service.utility"},
-	{org = "nalaka", packageName = "service", moduleName = "service.websocket"}
+	{org = "nalaka", packageName = "service", moduleName = "service.utility"}
 ]
 

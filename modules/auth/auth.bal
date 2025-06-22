@@ -10,7 +10,8 @@ import 'service.firebase as firebase;
 import 'service.utility as utility;
 
 
-
+configurable string keyPath = ?;
+configurable string publicKey = ?;
 
 
 public function generateAuthToken( map<json> user) returns string|error {
@@ -24,7 +25,7 @@ public function generateAuthToken( map<json> user) returns string|error {
         customClaims: user,
         signatureConfig: {
             config: {
-                keyFile: "private-auth.key" 
+                keyFile: keyPath
             }
         }
     };
@@ -195,11 +196,14 @@ public function login(@http:Payload json payload, string accessToken) returns ht
     // Generate authentication token
     string|error authToken = generateAuthToken(user);
     if(authToken is error){
+        io:print(authToken);
         return utility:createErrorResponse(500,"Internel server error");
+
     }
     // Create response with user info and token
     map<json> response = {
-            "token": authToken
+            "token": authToken,
+            "role":role
         };
     
     jwt:Payload|error payloadToken = verifyToken(authToken);
@@ -214,7 +218,7 @@ public function verifyToken(string jwtToken) returns jwt:Payload|error {
         issuer: "CarPool",
         audience: "CarPool-App",
         signatureConfig: {
-            certFile: "public.crt"
+            certFile: publicKey
         }
     };
 
