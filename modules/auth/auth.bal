@@ -47,7 +47,7 @@ public function register(@http:Payload json payload, string accessToken) returns
     string firstName = check payload.firstName.ensureType();
     string lastName = check payload.lastName.ensureType();
     string phone = check payload.phone.ensureType();
-    string role = check payload.role.ensureType();
+    string role = check payload.role;
 
     // Validate required fields
     if email is "" || password is "" || firstName is "" || lastName is "" || role is "" {
@@ -110,7 +110,7 @@ public function register(@http:Payload json payload, string accessToken) returns
 
     // Create user document
     string userId = uuid:createType1AsString();
-    string passwordHash = hashPassword(<string>password);
+    string passwordHash = hashPassword(password);
     string currentTime = time:utcNow().toString();
 
     map<json> userData = {
@@ -176,7 +176,7 @@ public function login(@http:Payload json payload, string accessToken) returns ht
     user = queryResult[0];
 
     string storedPasswordHash = <string>user["passwordHash"];
-    string providedPasswordHash = hashPassword(<string>password);
+    string providedPasswordHash = hashPassword(check password.ensureType());
 
     if storedPasswordHash != providedPasswordHash {
         return utility:createErrorResponse(401, "Invalid email or password");
@@ -201,6 +201,7 @@ public function login(@http:Payload json payload, string accessToken) returns ht
 
     }
     // Create response with user info and token
+    io:print(authToken);
     map<json> response = {
             "token": authToken,
             "role":role

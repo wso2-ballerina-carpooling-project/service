@@ -3,6 +3,7 @@ import 'service.auth;
 import 'service.firebase;
 import ballerina/http;
 import ballerina/io;
+import 'service.ride_management;
 
 
 
@@ -12,12 +13,21 @@ service /api on new http:Listener(9090) {
         http:Response|error response = auth:register(payload, accessToken);
         return response;
     }
-
     resource function post login(@http:Payload json payload) returns http:Response|error {
         string accessToken = checkpanic firebase:generateAccessToken();
         http:Response|error response = auth:login(payload, accessToken);
         return response;
 
+    }
+    resource function post postRide(@http:Payload json payload, http:Request req) returns http:Response|error {
+        string accessToken = checkpanic firebase:generateAccessToken();
+        io:print("POST /rides - Creating new ride");
+        return ride_management:postARide(payload, accessToken, req);
+    }
+    resource function post getRide(@http:Payload json payload, http:Request req) returns http:Response|error {
+        string accessToken = checkpanic firebase:generateAccessToken();
+        io:print("POST /rides - Getting ride");
+        return ride_management:getMyRides(accessToken, req);
     }
 
     resource function get direction() {

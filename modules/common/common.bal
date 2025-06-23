@@ -30,4 +30,28 @@ public type rideDetails record {|
 |};
 
 
+public type RideData record {
+    string pickupLocation;
+    string dropoffLocation;
+    string date;
+    string startTime;
+    string returnTime;
+    string vehicleRegNo;
+    RouteInfo route;
+    string createdAt?;
+    string rideId?;
+};
+
+public type RouteInfo record {
+    int index;
+    string duration;
+    string distance;
+    LatLng[] polyline;
+};
+
+public type LatLng record {
+    decimal latitude;
+    decimal longitude;
+};
+
 //websocket

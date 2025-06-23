@@ -199,13 +199,13 @@ public function queryFirestoreDocuments(
     
     http:Response response = check firestoreClient->post("", request);
 
-    io:println("resposnessee" , response.getJsonPayload());
+    io:print("resposnessee" , response.statusCode);
     
     if (response.statusCode == 200) {
         json[] responseArray = <json[]>check response.getJsonPayload();
         map<json>[] results = [];
 
-
+        io:print(responseArray);
         
         foreach json item in responseArray {
             if (item.document is json) {
