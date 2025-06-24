@@ -5,6 +5,7 @@ import ballerina/uuid;
 import ballerina/io;
 import ballerina/jwt;
 
+
 import 'service.firebase as firebase;
 import 'service.utility as utility;
 
@@ -12,12 +13,11 @@ configurable string publicKey = ?;
 
 // Define ride data types
 type RideData record {
-    string pickupLocation;
-    string dropoffLocation;
+    string startLocation;
+    string endLocation;
+    boolean waytowork;
     string date;
-    string startTime;
-    string returnTime;
-    string vehicleRegNo;
+    string time;
     RouteInfo route;
 };
 
@@ -81,7 +81,7 @@ public function verifyToken(string jwtToken) returns jwt:Payload|error {
     return validPayload;
 }
 public function postARide(@http:Payload json payload, string accessToken, http:Request req) returns http:Response {
-    io:print("Received ride payload: ", payload);
+    // io:print("Received ride payload: ", payload);
     
     // Get authorization header
     string|http:HeaderNotFoundError authHeader = req.getHeader("Authorization");
@@ -118,10 +118,10 @@ public function postARide(@http:Payload json payload, string accessToken, http:R
     }
     
     // Validate required fields
-    if rideData.pickupLocation == "" || rideData.dropoffLocation == "" || 
-       rideData.date == "" || rideData.startTime == "" {
-        return utility:createErrorResponse(400, "Missing required ride information");
-    }
+    // if rideData.startLocation == "" || rideData.endLocation == "" || 
+    //    rideData.date == "" || rideData.startTime == "" {
+    //     return utility:createErrorResponse(400, "Missing required ride information");
+    // }
     
     // For drivers, they can specify their vehicle registration number
     // if userRole == "driver" && rideData.vehicleRegNo != "" {
@@ -139,13 +139,11 @@ public function postARide(@http:Payload json payload, string accessToken, http:R
     map<json> rideDocument = {
         "rideId": rideId,
         "driverId": userId,
-        "driverRole": userRole,
-        "pickupLocation": rideData.pickupLocation,
-        "dropoffLocation": rideData.dropoffLocation,
+        "startLocation": rideData.startLocation,
+        "endLocation": rideData.endLocation,
         "date": rideData.date,
-        "startTime": rideData.startTime,
-        "returnTime": rideData.returnTime,
-        "vehicleRegNo": rideData.vehicleRegNo,
+        "waytowork": rideData.waytowork,
+        "time": rideData.time,
         "route": {
             "index": rideData.route.index,
             "duration": rideData.route.duration,
@@ -155,8 +153,7 @@ public function postARide(@http:Payload json payload, string accessToken, http:R
         "status": "active",
         "createdAt": currentTime,
         "updatedAt": currentTime,
-        "passengers": [] // Array to store passenger bookings
-        // "maxPassengers": userRole == "driver" ? getDriverSeatingCapacity(userId, accessToken) : 1
+        "passengers": [] 
     };
     
     // Store ride in Firestore
@@ -283,15 +280,8 @@ public function getMyRides(string accessToken, http:Request req) returns http:Re
 //     }
     
 //     // Extract user info from token
-//     map<json> customClaims = <map<json>>tokenPayload["customClaims"];
-//     string userId = <string>customClaims["id"];
-//     string userRole = <string>customClaims["role"];
-//     string userStatus = <string>customClaims["status"];
-    
-//     // Check if user is approved
-//     if userRole != "admin" && userStatus != "approved" {
-//         return utility:createErrorResponse(403, "Your account is not approved to book rides");
-//     }
+//     string userId = <string>tokenPayload["id"];
+//     io:print(userId);
     
 //     // Get ride details first
 //     map<json> rideFilter = {"rideId": rideId, "status": "active"};
@@ -421,3 +411,74 @@ public function getMyRides(string accessToken, http:Request req) returns http:Re
     
 //     return 1;
 // }
+
+
+
+
+
+
+// Simple distance calculation using basic math operations
+
+
+
+
+// Function to check if pickup time is within acceptable range
+
+
+// Main endpoint for finding matching rides
+public function findMatchingRides(
+    string accessToken, 
+    http:Request req, 
+    json date,
+    json time,
+    boolean isWayToWork
+
+) returns http:Response|error {
+    
+    // Get authorization header
+    string|http:HeaderNotFoundError authHeader = req.getHeader("Authorization");
+    if authHeader is http:HeaderNotFoundError {
+        return utility:createErrorResponse(401, "Authorization header missing");
+    }
+    
+    // Extract and verify JWT token
+    string jwtToken = authHeader.substring(7);
+    jwt:Payload|error tokenPayload = verifyToken(jwtToken);
+    if tokenPayload is error {
+        return utility:createErrorResponse(401, "Invalid or expired token");
+    }
+    
+
+
+    // Query all active rides for the specified date
+    map<json> queryFilter = {
+        "status": "active",
+        "waytowork": isWayToWork,
+        "date": date,
+        "time": time
+    };
+    
+    map<json>[]|error queryResult = firebase:queryFirestoreDocuments(
+        "carpooling-c6aa5",
+        accessToken,
+        "rides",
+        queryFilter
+    );
+
+    io:print(queryResult);
+    
+    if queryResult is error {
+        log:printError("Failed to fetch rides", queryResult);
+        return utility:createErrorResponse(500, "Failed to fetch rides");
+    }
+    
+    // Filter rides based on location proximity
+    return utility:createSuccessResponse(200, {
+        "rides": queryResult,
+        "count": queryResult.length()
+    });
+       
+    }
+
+// Sort by total distance (closest rides first) - simplified sorting
+    
