@@ -37,7 +37,6 @@ service /api on new http:Listener(9090) {
     }
 
     resource function post search(http:Request req) returns http:Response|error {
-
         json|error payload = req.getJsonPayload();
         if payload is error {
             return utility:createErrorResponse(400, "Invalid JSON payload");

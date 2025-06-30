@@ -263,6 +263,7 @@ public function getMyRides(string accessToken, http:Request req) returns http:Re
             "rides",
             queryFilter
     );
+    io:print(queryResult);
 
     if queryResult is error {
         // log:printError("Failed to fetch user rides", queryResult);
