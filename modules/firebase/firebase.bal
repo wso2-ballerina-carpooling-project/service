@@ -317,6 +317,64 @@ public function queryFirestoreDocuments(
         return error(errorMessage);
     }
 }
+
+
+public function getFirestoreDocumentById(
+    string projectId,
+    string accessToken,
+    string collection,
+    string documentId
+) returns map<json>|error {
+    string firestoreUrl = string `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${collection}/${documentId}`;
+    
+    http:Client firestoreClient = check new (firestoreUrl);
+    map<string> headers = {
+        "Authorization": string `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+    };
+    
+    http:Response response = check firestoreClient->get("", headers);
+    
+    log:printInfo("Response status code: " + response.statusCode.toString());
+    
+    if (response.statusCode == 200) {
+        json responsePayload = check response.getJsonPayload();
+        
+        if (responsePayload is map<json> && responsePayload.hasKey("fields")) {
+            map<json> document = {};
+            map<json> fields = <map<json>>responsePayload["fields"];
+            
+            // Extract each field
+            foreach var [key, value] in fields.entries() {
+                json|error extractedValue = extractFirestoreValue(value);
+                if (extractedValue is error) {
+                    log:printError("Error extracting field " + key, extractedValue);
+                    continue;
+                }
+                document[key] = extractedValue;
+            }
+            
+            // Add the document ID
+            document["id"] = documentId;
+            
+            log:printInfo("Successfully retrieved document with ID: " + documentId);
+            return document;
+        } else {
+            string errorMessage = "Document does not have fields property";
+            log:printError(errorMessage);
+            return error(errorMessage);
+        }
+    } else if (response.statusCode == 404) {
+        string errorMessage = "Document not found with ID: " + documentId;
+        log:printError(errorMessage);
+        return error(errorMessage);
+    } else {
+        string errorBody = check response.getTextPayload();
+        string errorMessage = "Failed to get document. Status code: " + response.statusCode.toString() + " Error: " + errorBody;
+        log:printError(errorMessage);
+        return error(errorMessage);
+    }
+}
 // Updated function that merges data instead of replacing
 public function updateFirestoreDocument(
         string projectId,

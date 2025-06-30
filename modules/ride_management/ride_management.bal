@@ -1,13 +1,12 @@
+import 'service.firebase as firebase;
+import 'service.utility as utility;
+
 import ballerina/http;
+import ballerina/io;
+import ballerina/jwt;
 import ballerina/log;
 import ballerina/time;
 import ballerina/uuid;
-import ballerina/io;
-import ballerina/jwt;
-
-
-import 'service.firebase as firebase;
-import 'service.utility as utility;
 
 configurable string publicKey = ?;
 
@@ -52,7 +51,7 @@ public function verifyToken(string jwtToken) returns jwt:Payload|error {
 
     // Validate the JWT token
     jwt:Payload|error payload = jwt:validate(jwtToken, validatorConfig);
-    
+
     if payload is error {
         log:printError("JWT validation failed", payload);
         return error("Invalid or expired token");
@@ -60,7 +59,7 @@ public function verifyToken(string jwtToken) returns jwt:Payload|error {
 
     // Additional validation checks
     jwt:Payload validPayload = payload;
-    
+
     // Check if token has expired manually (additional safety check)
     if validPayload.exp is int {
         int currentTime = time:utcNow()[0];
@@ -80,49 +79,51 @@ public function verifyToken(string jwtToken) returns jwt:Payload|error {
 
     return validPayload;
 }
+
 public function postARide(@http:Payload json payload, string accessToken, http:Request req) returns http:Response {
     // io:print("Received ride payload: ", payload);
-    
+
     // Get authorization header
     string|http:HeaderNotFoundError authHeader = req.getHeader("Authorization");
     if authHeader is http:HeaderNotFoundError {
         return utility:createErrorResponse(401, "Authorization header missing");
     }
-    
+
     // Extract JWT token (remove "Bearer " prefix)
     string jwtToken = authHeader.substring(7);
-    
+
     // Verify JWT token
     jwt:Payload|error tokenPayload = verifyToken(jwtToken);
     if tokenPayload is error {
         log:printError("Token verification failed", tokenPayload);
         return utility:createErrorResponse(401, "Invalid or expired token");
     }
-    
+    io:print(tokenPayload);
+
     // Extract user info from token
     // map<json> customClaims = check <map<json>>tokenPayload["customClaims"];
     string userId = <string>tokenPayload["id"];
     string userRole = <string>tokenPayload["role"];
     string userStatus = <string>tokenPayload["status"];
-    
+
     // // Check if user is approved (except admin)
     if userRole != "admin" && userStatus != "approved" {
         return utility:createErrorResponse(403, "Your account is not approved to post rides");
     }
-    
+
     // Validate ride data
     RideData|error rideData = payload.cloneWithType(RideData);
     if rideData is error {
         log:printError("Invalid ride data format", rideData);
         return utility:createErrorResponse(400, "Invalid ride data format");
     }
-    
+
     // Validate required fields
     // if rideData.startLocation == "" || rideData.endLocation == "" || 
     //    rideData.date == "" || rideData.startTime == "" {
     //     return utility:createErrorResponse(400, "Missing required ride information");
     // }
-    
+
     // For drivers, they can specify their vehicle registration number
     // if userRole == "driver" && rideData.vehicleRegNo != "" {
     //     // Verify the vehicle belongs to the driver
@@ -131,11 +132,43 @@ public function postARide(@http:Payload json payload, string accessToken, http:R
     //         return utility:createErrorResponse(400, "Invalid vehicle registration number for this driver");
     //     }
     // }
-    
+
     // Create ride document
     string rideId = uuid:createType1AsString();
     string currentTime = time:utcNow().toString();
-    
+
+    json|error queryResult = firebase:getFirestoreDocumentById(
+            "carpooling-c6aa5",
+            accessToken,
+            "users",
+            userId
+    );
+
+    int seat = 0;
+
+    if (queryResult is json) {
+        // First check if queryResult is a map<json>
+        if (queryResult is map<json>) {
+            // Then safely extract the nested values
+            json driverDetailsValue = queryResult["driverDetails"];
+            if (driverDetailsValue is map<json>) {
+                json seatingCapacityValue = driverDetailsValue["seatingCapacity"];
+                if (seatingCapacityValue is int) {
+                    seat = seatingCapacityValue;
+                    log:printInfo("Seating capacity: " + seat.toString());
+                } else {
+                    log:printError("seatingCapacity is not an integer");
+                }
+            } else {
+                log:printError("driverDetails is not a map");
+            }
+        } else {
+            log:printError("Query result is not a map");
+        }
+    } else {
+        log:printError("Error getting document: " + queryResult.message());
+    }
+
     map<json> rideDocument = {
         "rideId": rideId,
         "driverId": userId,
@@ -143,6 +176,7 @@ public function postARide(@http:Payload json payload, string accessToken, http:R
         "endLocation": rideData.endLocation,
         "date": rideData.date,
         "waytowork": rideData.waytowork,
+        "seat": seat,
         "time": rideData.time,
         "route": {
             "index": rideData.route.index,
@@ -153,29 +187,29 @@ public function postARide(@http:Payload json payload, string accessToken, http:R
         "status": "active",
         "createdAt": currentTime,
         "updatedAt": currentTime,
-        "passengers": [] 
+        "passengers": []
     };
-    
+
     // Store ride in Firestore
     json|error createResult = firebase:createFirestoreDocument(
-        "carpooling-c6aa5",
-        accessToken,
-        "rides",
-        rideDocument
+            "carpooling-c6aa5",
+            accessToken,
+            "rides",
+            rideDocument
     );
-    
+
     if createResult is error {
         log:printError("Failed to create ride", createResult);
         return utility:createErrorResponse(500, "Failed to post ride");
     }
-    
+
     log:printInfo("Ride posted successfully with ID: " + rideId);
-    
+
     return utility:createSuccessResponse(201, {
-        "message": "Ride posted successfully",
-        "rideId": rideId,
-        "ride": rideDocument
-    });
+                                                  "message": "Ride posted successfully",
+                                                  "rideId": rideId,
+                                                  "ride": rideDocument
+                                              });
 }
 
 // Get rides function
@@ -185,17 +219,17 @@ public function getRides(string accessToken, http:Request req, string? origin = 
     if authHeader is http:HeaderNotFoundError {
         return utility:createErrorResponse(401, "Authorization header missing");
     }
-    
+
     // Extract and verify JWT token
     string jwtToken = authHeader.substring(7);
     jwt:Payload|error tokenPayload = verifyToken(jwtToken);
     if tokenPayload is error {
         return utility:createErrorResponse(401, "Invalid or expired token");
     }
-    
+
     // Build query filter
     map<json> queryFilter = {"status": "active"};
-    
+
     if origin is string && origin != "" {
         queryFilter["pickupLocation"] = origin;
     }
@@ -205,24 +239,24 @@ public function getRides(string accessToken, http:Request req, string? origin = 
     if date is string && date != "" {
         queryFilter["date"] = date;
     }
-    
+
     // Query rides from Firestore
     map<json>[]|error queryResult = firebase:queryFirestoreDocuments(
-        "carpooling-c6aa5",
-        accessToken,
-        "rides",
-        queryFilter
+            "carpooling-c6aa5",
+            accessToken,
+            "rides",
+            queryFilter
     );
-    
+
     if queryResult is error {
         log:printError("Failed to fetch rides", queryResult);
         return utility:createErrorResponse(500, "Failed to fetch rides");
     }
-    
+
     return utility:createSuccessResponse(200, {
-        "rides": queryResult,
-        "count": queryResult.length()
-    });
+                                                  "rides": queryResult,
+                                                  "count": queryResult.length()
+                                              });
 }
 
 // Get user's rides
@@ -232,36 +266,36 @@ public function getMyRides(string accessToken, http:Request req) returns http:Re
     if authHeader is http:HeaderNotFoundError {
         return utility:createErrorResponse(401, "Authorization header missing");
     }
-    
+
     // Extract and verify JWT token
     string jwtToken = authHeader.substring(7);
     jwt:Payload|error tokenPayload = verifyToken(jwtToken);
     if tokenPayload is error {
         return utility:createErrorResponse(401, "Invalid or expired token");
     }
-    
+
     // Extract user info from token
     string userId = <string>tokenPayload["id"];
     io:print(userId);
-    
+
     // Query user's rides
     map<json> queryFilter = {"driverId": userId};
     map<json>[]|error queryResult = firebase:queryFirestoreDocuments(
-        "carpooling-c6aa5",
-        accessToken,
-        "rides",
-        queryFilter
+            "carpooling-c6aa5",
+            accessToken,
+            "rides",
+            queryFilter
     );
-    
+
     if queryResult is error {
-       // log:printError("Failed to fetch user rides", queryResult);
+        // log:printError("Failed to fetch user rides", queryResult);
         return utility:createErrorResponse(500, "Failed to fetch your rides");
     }
-    
+
     return utility:createSuccessResponse(200, {
-        "rides": queryResult,
-        "count": queryResult.length()
-    });
+                                                  "rides": queryResult,
+                                                  "count": queryResult.length()
+                                              });
 }
 
 // Book a ride
@@ -271,18 +305,18 @@ public function getMyRides(string accessToken, http:Request req) returns http:Re
 //     if authHeader is http:HeaderNotFoundError {
 //         return utility:createErrorResponse(401, "Authorization header missing");
 //     }
-    
+
 //     // Extract and verify JWT token
 //     string jwtToken = authHeader.substring(7);
 //     jwt:Payload|error tokenPayload = verifyToken(jwtToken);
 //     if tokenPayload is error {
 //         return utility:createErrorResponse(401, "Invalid or expired token");
 //     }
-    
+
 //     // Extract user info from token
 //     string userId = <string>tokenPayload["id"];
 //     io:print(userId);
-    
+
 //     // Get ride details first
 //     map<json> rideFilter = {"rideId": rideId, "status": "active"};
 //     map<json>[]|error rideQuery = firebase:queryFirestoreDocuments(
@@ -291,19 +325,19 @@ public function getMyRides(string accessToken, http:Request req) returns http:Re
 //         "rides",
 //         rideFilter
 //     );
-    
+
 //     if rideQuery is error || rideQuery.length() == 0 {
 //         return utility:createErrorResponse(404, "Ride not found or not available");
 //     }
-    
+
 //     map<json> ride = rideQuery[0];
 //     string driverId = <string>ride["driverId"];
-    
+
 //     // Check if user is trying to book their own ride
 //     if driverId == userId {
 //         return utility:createErrorResponse(400, "You cannot book your own ride");
 //     }
-    
+
 //     // Check if user already booked this ride
 //     json[] passengers = <json[]>ride["passengers"];
 //     foreach json passenger in passengers {
@@ -312,17 +346,17 @@ public function getMyRides(string accessToken, http:Request req) returns http:Re
 //             return utility:createErrorResponse(400, "You have already booked this ride");
 //         }
 //     }
-    
+
 //     // Check ride capacity
 //     int maxPassengers = <int>ride["maxPassengers"];
 //     if passengers.length() >= maxPassengers {
 //         return utility:createErrorResponse(400, "Ride is fully booked");
 //     }
-    
+
 //     // Create booking
 //     string bookingId = uuid:createType1AsString();
 //     string currentTime = time:utcNow().toString();
-    
+
 //     map<json> booking = {
 //         "bookingId": bookingId,
 //         "passengerId": userId,
@@ -331,16 +365,16 @@ public function getMyRides(string accessToken, http:Request req) returns http:Re
 //         "bookedAt": currentTime,
 //         "status": "confirmed"
 //     };
-    
+
 //     // Add booking to passengers array
 //     passengers.push(booking);
-    
+
 //     // Update ride document
 //     map<json> updateData = {
 //         "passengers": passengers,
 //         "updatedAt": currentTime
 //     };
-    
+
 //     // Update ride in Firestore (you'll need to implement updateFirestoreDocument in your firebase module)
 //     json|error updateResult = firebase:updateFirestoreDocument(
 //         "carpooling-c6aa5",
@@ -349,12 +383,12 @@ public function getMyRides(string accessToken, http:Request req) returns http:Re
 //         rideId,
 //         updateData
 //     );
-    
+
 //     if updateResult is error {
 //         log:printError("Failed to book ride", updateResult);
 //         return utility:createErrorResponse(500, "Failed to book ride");
 //     }
-    
+
 //     return utility:createSuccessResponse(200, {
 //         "message": "Ride booked successfully",
 //         "bookingId": bookingId,
@@ -371,19 +405,19 @@ public function getMyRides(string accessToken, http:Request req) returns http:Re
 //         "users",
 //         userFilter
 //     );
-    
+
 //     if userQuery is error || userQuery.length() == 0 {
 //         return false;
 //     }
-    
+
 //     map<json> user = userQuery[0];
 //     json? driverDetails = user["driverDetails"];
-    
+
 //     if driverDetails is map<json> {
 //         string? userVehicleRegNo = <string?>driverDetails["vehicleRegistrationNumber"];
 //         return userVehicleRegNo == vehicleRegNo;
 //     }
-    
+
 //     return false;
 // }
 
@@ -396,59 +430,48 @@ public function getMyRides(string accessToken, http:Request req) returns http:Re
 //         "users",
 //         userFilter
 //     );
-    
+
 //     if userQuery is error || userQuery.length() == 0 {
 //         return 1; // Default capacity
 //     }
-    
+
 //     map<json> user = userQuery[0];
 //     json? driverDetails = user["driverDetails"];
-    
+
 //     if driverDetails is map<json> {
 //         int? capacity = <int?>driverDetails["seatingCapacity"];
 //         return capacity ?: 1;
 //     }
-    
+
 //     return 1;
 // }
 
-
-
-
-
-
 // Simple distance calculation using basic math operations
-
-
-
 
 // Function to check if pickup time is within acceptable range
 
-
 // Main endpoint for finding matching rides
 public function findMatchingRides(
-    string accessToken, 
-    http:Request req, 
-    json date,
-    json time,
-    boolean isWayToWork
+        string accessToken,
+        http:Request req,
+        json date,
+        json time,
+        boolean isWayToWork
 
 ) returns http:Response|error {
-    
+
     // Get authorization header
     string|http:HeaderNotFoundError authHeader = req.getHeader("Authorization");
     if authHeader is http:HeaderNotFoundError {
         return utility:createErrorResponse(401, "Authorization header missing");
     }
-    
+
     // Extract and verify JWT token
     string jwtToken = authHeader.substring(7);
     jwt:Payload|error tokenPayload = verifyToken(jwtToken);
     if tokenPayload is error {
         return utility:createErrorResponse(401, "Invalid or expired token");
     }
-    
-
 
     // Query all active rides for the specified date
     map<json> queryFilter = {
@@ -457,28 +480,27 @@ public function findMatchingRides(
         "date": date,
         "time": time
     };
-    
+
     map<json>[]|error queryResult = firebase:queryFirestoreDocuments(
-        "carpooling-c6aa5",
-        accessToken,
-        "rides",
-        queryFilter
+            "carpooling-c6aa5",
+            accessToken,
+            "rides",
+            queryFilter
     );
 
     io:print(queryResult);
-    
+
     if queryResult is error {
         log:printError("Failed to fetch rides", queryResult);
         return utility:createErrorResponse(500, "Failed to fetch rides");
     }
-    
+
     // Filter rides based on location proximity
     return utility:createSuccessResponse(200, {
-        "rides": queryResult,
-        "count": queryResult.length()
-    });
-       
-    }
+                                                  "rides": queryResult,
+                                                  "count": queryResult.length()
+                                              });
+
+}
 
 // Sort by total distance (closest rides first) - simplified sorting
-    

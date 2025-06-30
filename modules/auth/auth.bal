@@ -174,6 +174,7 @@ public function login(@http:Payload json payload, string accessToken) returns ht
 
     map<json> user;
     user = queryResult[0];
+    io:print(user);
 
     string storedPasswordHash = <string>user["passwordHash"];
     string providedPasswordHash = hashPassword(check password.ensureType());

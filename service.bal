@@ -129,6 +129,8 @@ service /api on new http:Listener(9090) {
 
     io:print(rideDoc);
 
+
+
     if rideDoc is error {
         if rideDoc.message().includes("Document not found") {
             return utility:createErrorResponse(404, "Ride not found");
@@ -141,7 +143,8 @@ service /api on new http:Listener(9090) {
         log:printError("No document found with rideId: " + rideId);
         return utility:createErrorResponse(404, "Ride not found");
     }
-
+    string driver = rideDoc[0]["driverId"].toString();
+    io:println(driver);
     // Extract existing passengers array
     json[] existingPassengers = [];
     if rideDoc[0].hasKey("passengers") && rideDoc[0]["passengers"] is json[] {
@@ -158,6 +161,16 @@ service /api on new http:Listener(9090) {
         }
     }
 
+    map<json> queryFilter2 = {"id": driver};
+    map<json>[]|error rideDoc2 = firebase:queryFirestoreDocuments(
+           "carpooling-c6aa5",
+            accessToken,
+            "users",
+            queryFilter
+    );
+
+    io:print(rideDoc2);
+    
     // Create new passenger object
     map<json> newPassenger = {
         "passengerId": userId,
