@@ -160,17 +160,8 @@ service /api on new http:Listener(9090) {
             }
         }
     }
-
-    map<json> queryFilter2 = {"id": driver};
-    map<json>[]|error rideDoc2 = firebase:queryFirestoreDocuments(
-           "carpooling-c6aa5",
-            accessToken,
-            "users",
-            queryFilter
-    );
-
-    io:print(rideDoc2);
-    
+    int seat = <int>rideDoc[0]["seat"];
+    int newSeat = seat -1;
     // Create new passenger object
     map<json> newPassenger = {
         "passengerId": userId,
@@ -189,6 +180,7 @@ service /api on new http:Listener(9090) {
     // This will only update the specified fields while preserving all other existing data
     map<json> updateData = {
         "passengers": existingPassengers,
+        "seat":newSeat,
         "updatedAt": time:utcNow()[0]
     };
 

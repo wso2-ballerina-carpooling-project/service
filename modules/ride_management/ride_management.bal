@@ -495,9 +495,16 @@ public function findMatchingRides(
         return utility:createErrorResponse(500, "Failed to fetch rides");
     }
 
+    map<json>[] newData = [];
+    foreach var item in queryResult {
+        if(<int>item["seat"]>0){
+            newData.push(item);
+        }
+    }
+
     // Filter rides based on location proximity
     return utility:createSuccessResponse(200, {
-                                                  "rides": queryResult,
+                                                  "rides": newData,
                                                   "count": queryResult.length()
                                               });
 
