@@ -5,10 +5,11 @@ import ballerina/http;
 import ballerina/io;
 import ballerina/jwt;
 import ballerina/log;
+import 'service.auth;
 
 
-const string[] ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
-const int MAX_FILE_SIZE = 5 * 1024 * 1024; 
+// const string[] ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+// const int MAX_FILE_SIZE = 5 * 1024 * 1024; 
 
 public function updateName(json payload, http:Request req, string accessToken) returns http:Response|error {
     string|http:HeaderNotFoundError authHeader = req.getHeader("Authorization");
@@ -46,13 +47,28 @@ public function updateName(json payload, http:Request req, string accessToken) r
         return utility:createErrorResponse(500, "Failed to update name");
     }
 
+     map<json>|error userDoc = firebase:getFirestoreDocumentById(
+            "carpooling-c6aa5",
+            accessToken,
+            "users",
+            userId
+    );
+
+    string jwt;
+    if userDoc is error {
+        return utility:createErrorResponse(500, "Failed to update name");
+    } else {
+        jwt = check auth:generateAuthToken(userDoc);
+    }
+
     json successResponse = {
-            "message": "Name updated successfully"
-        };
+        "message": "Name updated successfully"
+    };
 
     http:Response response = new;
     response.statusCode = 200;
     response.setJsonPayload(successResponse);
+    response.setHeader("Authorization", "Bearer " + jwt);
     return response;
 }
 
@@ -90,13 +106,28 @@ public function updatePhone(json payload, http:Request req, string accessToken) 
         return utility:createErrorResponse(500, "Failed to phone");
     }
 
+    map<json>|error userDoc = firebase:getFirestoreDocumentById(
+            "carpooling-c6aa5",
+            accessToken,
+            "users",
+            userId
+    );
+
+    string jwt;
+    if userDoc is error {
+        return utility:createErrorResponse(500, "Failed to update name");
+    } else {
+        jwt = check auth:generateAuthToken(userDoc);
+    }
+
     json successResponse = {
-            "message": "phone number updated successfully"
-        };
+        "message": "Phone updated successfully"
+    };
 
     http:Response response = new;
     response.statusCode = 200;
     response.setJsonPayload(successResponse);
+    response.setHeader("Authorization", "Bearer " + jwt);
     return response;
 }
 
