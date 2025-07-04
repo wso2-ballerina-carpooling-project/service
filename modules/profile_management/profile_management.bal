@@ -1,12 +1,12 @@
+import 'service.auth;
 import 'service.firebase;
 import 'service.ride_management;
 import 'service.utility;
+
 import ballerina/http;
 import ballerina/io;
 import ballerina/jwt;
 import ballerina/log;
-import 'service.auth;
-
 
 // const string[] ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
 // const int MAX_FILE_SIZE = 5 * 1024 * 1024; 
@@ -47,7 +47,7 @@ public function updateName(json payload, http:Request req, string accessToken) r
         return utility:createErrorResponse(500, "Failed to update name");
     }
 
-     map<json>|error userDoc = firebase:getFirestoreDocumentById(
+    map<json>|error userDoc = firebase:getFirestoreDocumentById(
             "carpooling-c6aa5",
             accessToken,
             "users",
@@ -131,14 +131,12 @@ public function updatePhone(json payload, http:Request req, string accessToken) 
     return response;
 }
 
-
 public function updateVehicle(http:Request req) returns http:Response|error {
     json|error payload = req.getJsonPayload();
     if payload is error {
         return utility:createErrorResponse(400, "Invalid JSON payload");
     }
 
-    
     string vehicleBrand = check payload.vehicleBrand;
     string vehicleType = check payload.vehicleType;
     string vehicleModel = check payload.vehicleModel;
@@ -192,7 +190,7 @@ public function updateVehicle(http:Request req) returns http:Response|error {
         return utility:createErrorResponse(404, "User not found");
     }
 
-    string actualDocumentId = userId; 
+    string actualDocumentId = userId;
 
     map<json> updateData = {
         "driverDetails": {
@@ -207,7 +205,7 @@ public function updateVehicle(http:Request req) returns http:Response|error {
     json|error updateResult = firebase:mergeFirestoreDocument(
             "carpooling-c6aa5",
             accessToken,
-            "users", 
+            "users",
             actualDocumentId,
             updateData
     );
@@ -217,7 +215,19 @@ public function updateVehicle(http:Request req) returns http:Response|error {
         return utility:createErrorResponse(500, "Failed to update vehicle details");
     }
 
-    
+    map<json>|error userDoc2 = firebase:getFirestoreDocumentById(
+            "carpooling-c6aa5",
+            accessToken,
+            "users",
+            userId
+    );
+    string jwt;
+    if userDoc2 is error {
+        return utility:createErrorResponse(500, "Failed to update name");
+    } else {
+        jwt = check auth:generateAuthToken(userDoc2);
+    }
+
     json successResponse = {
         "message": "Vehicle details updated successfully",
         "userId": userId,
@@ -233,11 +243,9 @@ public function updateVehicle(http:Request req) returns http:Response|error {
     http:Response response = new;
     response.statusCode = 200;
     response.setJsonPayload(successResponse);
+    response.setHeader("Authorization", "Bearer " + jwt);
     return response;
-    
 }
-
-
 
 // function isAllowedImageType(string contentType) returns boolean {
 //     foreach string allowedType in ALLOWED_IMAGE_TYPES {
@@ -272,8 +280,6 @@ public function updateVehicle(http:Request req) returns http:Response|error {
 //     }
 // }
 
-
-
 // public function uploadImage(http:Request req) returns http:Response|error {
 //     // Verify authorization
 //     string|error authHeader = req.getHeader("Authorization");
@@ -301,7 +307,7 @@ public function updateVehicle(http:Request req) returns http:Response|error {
 
 //     mime:Entity? imageEntity = ();
 //     string imageType = "profile"; // Default type
-    
+
 //     // Process multipart data
 //     foreach mime:Entity part in bodyParts {
 //         string|error contentDisposition = part.getHeader("Content-Disposition");
@@ -347,7 +353,7 @@ public function updateVehicle(http:Request req) returns http:Response|error {
 //     // Generate unique filename
 //     string fileExtension = getFileExtension(contentType);
 //     string fileName = string `${userId}_${imageType}_${uuid:createType1AsString()}.${fileExtension}`;
-    
+
 //     // Get Firebase access token
 //     string|error accessToken = firebase:generateAccessToken();
 //     if accessToken is error {
@@ -424,6 +430,5 @@ public function updateVehicle(http:Request req) returns http:Response|error {
 // // Helper function to check if file type is allowed
 
 // // Helper function to get file extension from content type
-
 
 // // Alternative function for profile image upload specifically
