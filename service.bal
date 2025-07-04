@@ -6,6 +6,7 @@ import 'service.ride_management as ride_management1;
 import 'service.utility;
 import ballerina/http;
 import ballerina/io;
+import 'service.profile_management;
 
 
 service /api on new http:Listener(9090) {
@@ -19,8 +20,23 @@ service /api on new http:Listener(9090) {
         string accessToken = checkpanic firebase:generateAccessToken();
         http:Response|error response = auth:login(payload, accessToken);
         return response;
-
     }
+
+    resource function post editName(@http:Payload json payload, http:Request req) returns http:Response|error {
+        string accessToken = checkpanic firebase:generateAccessToken();
+        http:Response|error response = profile_management:updateName(payload,req,accessToken);
+        return response;
+    }
+    resource function post editPhone(@http:Payload json payload, http:Request req) returns http:Response|error {
+        string accessToken = checkpanic firebase:generateAccessToken();
+        http:Response|error response = profile_management:updatePhone(payload,req,accessToken);
+        return response;
+    }
+    resource function post updateVehicle(@http:Payload json payload, http:Request req) returns http:Response|error {
+        http:Response|error response = profile_management:updateVehicle(req);
+        return response;
+    }
+    
 
     resource function post postRide(@http:Payload json payload, http:Request req) returns http:Response|error {
         string accessToken = checkpanic firebase:generateAccessToken();
@@ -68,16 +84,13 @@ service /api on new http:Listener(9090) {
         return result;
     }
 
-    // resource function get direction() {
-    //     error? response = Map:getDirection();
-    // }
+    resource function post direction(http:Request req) returns http:Response|error{
+        return Map:getDirection(req);
+    }
 
     resource function post searchLocation(@http:Payload json payload) returns http:Response|error {
-        // Safely extract the 'text' field from the payload
         string searchQuery = check payload.text.ensureType();
         io:println("Searching for places matching: '" + searchQuery + "'");
-
-        // Call the function that uses Google Places API
         http:Response|error results = Map:searchSriLankaPlaces(searchQuery);
         return results;
     }

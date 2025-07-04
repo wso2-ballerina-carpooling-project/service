@@ -1,6 +1,7 @@
 import ballerina/http;
 import ballerina/io;
 import ballerina/url;
+import 'service.utility as utility;
 // import ballerina/log;
 
 // Configuration for Google Maps Directions API
@@ -15,11 +16,16 @@ type PlaceInfo record {
 };
 
 
-public function getDirection() returns error? {
+public function getDirection(http:Request req) returns http:Response|error {
     http:Client directionsClient = check new ("https://maps.googleapis.com");
-    
-    string origin = "6.7734,79.8825";
-    string destination = "6.9344,79.8428";
+    json|error payload = req.getJsonPayload();
+
+    if payload is error {
+        return utility:createErrorResponse(400, "Invalid JSON payload");
+    }
+
+    string origin = check payload.origin;
+    string destination = check payload.destination;
     string[] travelModes = ["driving"];
     
     foreach string mode in travelModes {
@@ -35,11 +41,12 @@ public function getDirection() returns error? {
         // Make the API request
         json response = check directionsClient->get(path);
         
-        // io:println(response);
+        io:println(response);
 
         // Process and display routes
-       processRoutes(response);
+        return utility:createSuccessResponse(200,response);
     }
+    return utility:createErrorResponse(404,"No matching rides");
 }
 
 function processRoutes(json response) {

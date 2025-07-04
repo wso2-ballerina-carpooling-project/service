@@ -6,6 +6,7 @@ import ballerina/log;
 import ballerina/regex;
 import ballerina/time;
 
+
 configurable string privateKeyFilePath = ?;
 configurable string tokenScope = ?;
 configurable firebase_auth:ServiceAccount serviceAccount = ?;
@@ -509,3 +510,298 @@ public function updateFirestoreFields(
     
     return updateFirestoreDocument(projectId, accessToken, collection, documentId, fieldsToUpdate, updateMask, true);
 }
+
+
+//image
+
+// const string FIREBASE_STORAGE_API = "carpooling-c6aa5.firebasestorage.app";
+// const string FIREBASE_STORAGE_UPLOAD_API = "https://firebasestorage.googleapis.com/v0/b/";
+
+// // Upload file to Firebase Storage
+// public function uploadToStorage(string bucketName, string accessToken, string fileName, 
+//                               byte[] fileData, string contentType) returns string|error {
+    
+//     http:Client storageClient = check new ("https://firebasestorage.googleapis.com");
+    
+//     string encodedFileName = check url:encode(fileName, "UTF-8");
+//     // Construct upload URL
+//     string uploadUrl = string `${bucketName}/o/${encodedFileName}`;
+    
+//     // Create request
+//     http:Request req = new;
+//     req.setHeader("Authorization", "Bearer " + accessToken);
+//     req.setHeader("Content-Type", contentType);
+//     req.setBinaryPayload(fileData);
+    
+//     // Make upload request
+//     http:Response|error response = storageClient->post(uploadUrl, req);
+    
+//     if response is error {
+//         log:printError("Storage upload request failed", response);
+//         return error("Failed to upload to Firebase Storage: " + response.message());
+//     }
+    
+//     if response.statusCode != 200 {
+//         string|error errorBody = response.getTextPayload();
+//         string errorMessage = errorBody is string ? errorBody : "Unknown error";
+//         log:printError("Storage upload failed with status: " + response.statusCode.toString() + " - " + errorMessage);
+//         return error("Upload failed: " + errorMessage);
+//     }
+    
+//     json|error uploadResult = response.getJsonPayload();
+//     if uploadResult is error {
+//         log:printError("Failed to parse upload response", uploadResult);
+//         return error("Failed to parse upload response");
+//     }
+    
+//     log:printInfo("File uploaded successfully: " + fileName);
+//     return fileName;
+// }
+
+// // Get download URL for uploaded file
+// public function getDownloadUrl(string bucketName, string accessToken, string fileName) returns string|error {
+    
+//     http:Client storageClient = check new ("https://firebasestorage.googleapis.com");
+    
+//     // URL encode the file name
+//     string encodedFileName = check url:encode(fileName, "UTF-8");
+    
+//     // Construct API URL
+//     string apiUrl = string `/v0/b/${bucketName}/o/${encodedFileName}`;
+    
+//     // Create request
+//     map<string> headers = {
+//         "Authorization": "Bearer " + accessToken
+//     };
+    
+//     // Make request to get file metadata
+//     http:Response|error response = storageClient->get(apiUrl, headers);
+    
+//     if response is error {
+//         log:printError("Failed to get file metadata", response);
+//         return error("Failed to get file metadata: " + response.message());
+//     }
+    
+//     if response.statusCode != 200 {
+//         string|error errorBody = response.getTextPayload();
+//         string errorMessage = errorBody is string ? errorBody : "Unknown error";
+//         log:printError("Get metadata failed with status: " + response.statusCode.toString() + " - " + errorMessage);
+//         return error("Failed to get file metadata: " + errorMessage);
+//     }
+    
+//     json|error metadata = response.getJsonPayload();
+//     if metadata is error {
+//         log:printError("Failed to parse metadata response", metadata);
+//         return error("Failed to parse metadata response");
+//     }
+    
+//     // Extract download URL from metadata
+//     json|error downloadTokens = metadata.downloadTokens;
+//     if downloadTokens is error || downloadTokens is () {
+//         log:printError("No download tokens found in metadata");
+//         return error("No download tokens available for file");
+//     }
+    
+//     // Construct download URL
+//     string downloadUrl = string `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedFileName}?alt=media&token=${downloadTokens.toString()}`;
+    
+//     log:printInfo("Download URL generated for: " + fileName);
+//     return downloadUrl;
+// }
+
+// // Alternative method to get download URL using Firebase REST API
+// public function getDownloadUrlAlternative(string bucketName, string accessToken, string fileName) returns string|error {
+    
+//     http:Client storageClient = check new ("https://firebasestorage.googleapis.com");
+    
+//     // URL encode the file name
+//     string encodedFileName = check url:encode(fileName, "UTF-8");
+    
+//     // Get file metadata first
+//     string metadataUrl = string `/v0/b/${bucketName}/o/${encodedFileName}`;
+    
+//     map<string> headers = {
+//         "Authorization": "Bearer " + accessToken
+//     };
+    
+//     http:Response|error response = storageClient->get(metadataUrl, headers);
+    
+//     if response is error {
+//         return error("Failed to get file metadata: " + response.message());
+//     }
+    
+//     if response.statusCode != 200 {
+//         return error("File not found or access denied");
+//     }
+    
+//     json|error metadata = response.getJsonPayload();
+//     if metadata is error {
+//         return error("Failed to parse metadata");
+//     }
+    
+//     // Check if file has public access or get signed URL
+//     json|error mediaLink = metadata.mediaLink;
+//     if mediaLink is string {
+//         return mediaLink;
+//     }
+    
+//     // Generate signed URL if needed
+//     return generateSignedUrl(bucketName, accessToken, fileName);
+// }
+
+// // Generate signed URL for file access
+// public function generateSignedUrl(string bucketName, string accessToken, string fileName) returns string|error {
+    
+//     // Calculate expiration time (1 hour from now)
+//     time:Utc currentTime = time:utcNow();
+//     time:Utc expirationTime = time:utcAddSeconds(currentTime, 3600); // 1 hour
+    
+//     // For production, you would need to implement proper signed URL generation
+//     // This is a simplified version - in production, use Google Cloud Storage signed URLs
+    
+//     string encodedFileName = check url:encode(fileName, "UTF-8");
+//     string downloadUrl = string `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedFileName}?alt=media`;
+    
+//     return downloadUrl;
+// }
+
+// // Delete file from Firebase Storage
+// public function deleteFromStorage(string bucketName, string accessToken, string fileName) returns error? {
+    
+//     http:Client storageClient = check new ("https://firebasestorage.googleapis.com");
+    
+//     // URL encode the file name
+//     string encodedFileName = check url:encode(fileName, "UTF-8");
+    
+//     // Construct delete URL
+//     string deleteUrl = string `/v0/b/${bucketName}/o/${encodedFileName}`;
+    
+//     // Create request
+//     http:Request req = new;
+//     req.setHeader("Authorization", "Bearer " + accessToken);
+    
+//     // Make delete request
+//     http:Response|error response = storageClient->delete(deleteUrl, req);
+    
+//     if response is error {
+//         log:printError("Failed to delete file", response);
+//         return error("Failed to delete file: " + response.message());
+//     }
+    
+//     if response.statusCode != 204 && response.statusCode != 200 {
+//         string|error errorBody = response.getTextPayload();
+//         string errorMessage = errorBody is string ? errorBody : "Unknown error";
+//         log:printError("Delete failed with status: " + response.statusCode.toString() + " - " + errorMessage);
+//         return error("Failed to delete file: " + errorMessage);
+//     }
+    
+//     log:printInfo("File deleted successfully: " + fileName);
+// }
+
+// // List files in Firebase Storage bucket
+// public function listStorageFiles(string bucketName, string accessToken, string? prefix = ()) returns json|error {
+    
+//     http:Client storageClient = check new ("https://firebasestorage.googleapis.com");
+    
+//     // Construct list URL
+//     string listUrl = string `/v0/b/${bucketName}/o`;
+//     if prefix is string {
+//         string encodedPrefix = check url:encode(prefix, "UTF-8");
+//         listUrl = listUrl + "?prefix=" + encodedPrefix;
+//     }
+    
+//     // Create request
+//     map<string> headers = {
+//         "Authorization": "Bearer " + accessToken
+//     };
+    
+//     // Make list request
+//     http:Response|error response = storageClient->get(listUrl, headers);
+    
+//     if response is error {
+//         log:printError("Failed to list files", response);
+//         return error("Failed to list files: " + response.message());
+//     }
+    
+//     if response.statusCode != 200 {
+//         string|error errorBody = response.getTextPayload();
+//         string errorMessage = errorBody is string ? errorBody : "Unknown error";
+//         log:printError("List files failed with status: " + response.statusCode.toString() + " - " + errorMessage);
+//         return error("Failed to list files: " + errorMessage);
+//     }
+    
+//     json|error fileList = response.getJsonPayload();
+//     if fileList is error {
+//         log:printError("Failed to parse file list response", fileList);
+//         return error("Failed to parse file list response");
+//     }
+    
+//     return fileList;
+// }
+
+// // Get file metadata
+// public function getFileMetadata(string bucketName, string accessToken, string fileName) returns json|error {
+    
+//     http:Client storageClient = check new ("https://firebasestorage.googleapis.com");
+    
+//     // URL encode the file name
+//     string encodedFileName = check url:encode(fileName, "UTF-8");
+    
+//     // Construct metadata URL
+//     string metadataUrl = string `/v0/b/${bucketName}/o/${encodedFileName}`;
+    
+//     // Create request
+//     map<string> headers = {
+//         "Authorization": "Bearer " + accessToken
+//     };
+    
+//     // Make request
+//     http:Response|error response = storageClient->get(metadataUrl, headers);
+    
+//     if response is error {
+//         log:printError("Failed to get file metadata", response);
+//         return error("Failed to get file metadata: " + response.message());
+//     }
+    
+//     if response.statusCode != 200 {
+//         string|error errorBody = response.getTextPayload();
+//         string errorMessage = errorBody is string ? errorBody : "Unknown error";
+//         log:printError("Get metadata failed with status: " + response.statusCode.toString() + " - " + errorMessage);
+//         return error("Failed to get file metadata: " + errorMessage);
+//     }
+    
+//     json|error metadata = response.getJsonPayload();
+//     if metadata is error {
+//         log:printError("Failed to parse metadata response", metadata);
+//         return error("Failed to parse metadata response");
+//     }
+    
+//     return metadata;
+// }
+
+// // Helper function to validate file exists
+// public function fileExists(string bucketName, string accessToken, string fileName) returns boolean {
+//     json|error metadata = getFileMetadata(bucketName, accessToken, fileName);
+//     return metadata is json;
+// }
+
+// // Helper function to get file size
+// public function getFileSize(string bucketName, string accessToken, string fileName) returns int|error {
+//     json|error metadata = getFileMetadata(bucketName, accessToken, fileName);
+//     if metadata is error {
+//         return metadata;
+//     }
+    
+//     json|error sizeJson = metadata.size;
+//     if sizeJson is error {
+//         return error("File size not found in metadata");
+//     }
+    
+//     string sizeStr = sizeJson.toString();
+//     int|error size = int:fromString(sizeStr);
+//     if size is error {
+//         return error("Invalid file size format");
+//     }
+    
+//     return size;
+// }
