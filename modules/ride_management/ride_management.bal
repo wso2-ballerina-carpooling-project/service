@@ -485,7 +485,10 @@ public function getCompletedRide(http:Request req) returns http:Response|error{
             "rides",
             queryFilter
     );
-    io:print(queryResult);
-    return utility:createErrorResponse(401, "User ID not found in token");
+      if queryResult is error {
+        // log:printError("Failed to fetch user rides", queryResult);
+        return utility:createErrorResponse(500, "No completed rides");
+    }
+    return utility:createSuccessResponse(200, {"rides":queryResult});
 }
 
