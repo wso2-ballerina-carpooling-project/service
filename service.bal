@@ -84,7 +84,7 @@ service /api on new http:Listener(9090) {
         return result;
     }
     resource function post driverRideInfor(http:Request req) returns http:Response|error {
-        http:Response|error result = ride_management:getDriverRideInfo(req);
+        http:Response|error result = ride_management:getCompleteRide(req);
         return result;
     }
     resource function get ongoingDriverRide(http:Request req) returns http:Response|error {
