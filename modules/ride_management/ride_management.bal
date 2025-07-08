@@ -458,13 +458,20 @@ public function book(http:Request req) returns http:Response|error {
 
 }
 
-public function getCompletedRide(http:Request req) returns http:Response|error{
+public function getDriverRideInfo(http:Request req) returns http:Response|error{
     string|error authHeader = req.getHeader("Authorization");
     if authHeader is error {
         return utility:createErrorResponse(401, "Authorization header missing");
     }
 
     string jwtToken = authHeader.substring(7);
+
+    json|error payload = req.getJsonPayload();
+    if payload is error {
+        return utility:createErrorResponse(400, "Invalid JSON payload");
+    }
+
+    json status = check payload.status;
 
     jwt:Payload|error tokenPayload = verifyToken(jwtToken);
     if tokenPayload is error {
@@ -478,7 +485,7 @@ public function getCompletedRide(http:Request req) returns http:Response|error{
         return utility:createErrorResponse(401, "User ID not found in token");
     }
     string accessToken = checkpanic firebase:generateAccessToken();
-    map<json> queryFilter = {"driverId": userId,"status":"completed"};
+    map<json> queryFilter = {"driverId": userId,"status":status};
     map<json>[]|error queryResult = firebase:queryFirestoreDocuments(
             "carpooling-c6aa5",
             accessToken,

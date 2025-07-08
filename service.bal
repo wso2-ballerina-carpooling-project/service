@@ -83,8 +83,8 @@ service /api on new http:Listener(9090) {
         http:Response|error result = ride_management:book(req);
         return result;
     }
-    resource function get completedDriverRide(http:Request req) returns http:Response|error {
-        http:Response|error result = ride_management:getCompletedRide(req);
+    resource function post driverRideInfor(http:Request req) returns http:Response|error {
+        http:Response|error result = ride_management:getDriverRideInfo(req);
         return result;
     }
     resource function get ongoingDriverRide(http:Request req) returns http:Response|error {
