@@ -461,6 +461,7 @@ public function book(http:Request req) returns http:Response|error {
 public function getDriverRideInfo(http:Request req) returns http:Response|error{
     string|error authHeader = req.getHeader("Authorization");
     if authHeader is error {
+        
         return utility:createErrorResponse(401, "Authorization header missing");
     }
 
