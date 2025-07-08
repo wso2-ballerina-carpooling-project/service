@@ -52,6 +52,11 @@ service /api on new http:Listener(9090) {
         return ride_management:getMyRides(accessToken, req);
     }
 
+    resource function post getStartRide(@http:Payload json payload, http:Request req) returns http:Response|error {
+        string accessToken = checkpanic firebase:generateAccessToken();
+        return ride_management:getStartRide(accessToken, req);
+    }
+
     resource function post search(http:Request req) returns http:Response|error {
         json|error payload = req.getJsonPayload();
         if payload is error {
