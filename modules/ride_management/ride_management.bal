@@ -492,3 +492,71 @@ public function getCompletedRide(http:Request req) returns http:Response|error{
     return utility:createSuccessResponse(200, {"rides":queryResult});
 }
 
+public function getOngoingRide(http:Request req) returns http:Response|error{
+    string|error authHeader = req.getHeader("Authorization");
+    if authHeader is error {
+        return utility:createErrorResponse(401, "Authorization header missing");
+    }
+
+    string jwtToken = authHeader.substring(7);
+
+    jwt:Payload|error tokenPayload = verifyToken(jwtToken);
+    if tokenPayload is error {
+        log:printError("JWT decode error: " + tokenPayload.message());
+        return utility:createErrorResponse(401, "Invalid token");
+    }
+
+    string userId = <string>tokenPayload["id"];
+
+    if userId is "" {
+        return utility:createErrorResponse(401, "User ID not found in token");
+    }
+    string accessToken = checkpanic firebase:generateAccessToken();
+    map<json> queryFilter = {"driverId": userId,"status":"active"};
+    map<json>[]|error queryResult = firebase:queryFirestoreDocuments(
+            "carpooling-c6aa5",
+            accessToken,
+            "rides",
+            queryFilter
+    );
+      if queryResult is error {
+        // log:printError("Failed to fetch user rides", queryResult);
+        return utility:createErrorResponse(500, "No completed rides");
+    }
+    return utility:createSuccessResponse(200, {"rides":queryResult});
+}
+
+public function getCancelRide(http:Request req) returns http:Response|error{
+    string|error authHeader = req.getHeader("Authorization");
+    if authHeader is error {
+        return utility:createErrorResponse(401, "Authorization header missing");
+    }
+
+    string jwtToken = authHeader.substring(7);
+
+    jwt:Payload|error tokenPayload = verifyToken(jwtToken);
+    if tokenPayload is error {
+        log:printError("JWT decode error: " + tokenPayload.message());
+        return utility:createErrorResponse(401, "Invalid token");
+    }
+
+    string userId = <string>tokenPayload["id"];
+
+    if userId is "" {
+        return utility:createErrorResponse(401, "User ID not found in token");
+    }
+    string accessToken = checkpanic firebase:generateAccessToken();
+    map<json> queryFilter = {"driverId": userId,"status":"cancel"};
+    map<json>[]|error queryResult = firebase:queryFirestoreDocuments(
+            "carpooling-c6aa5",
+            accessToken,
+            "rides",
+            queryFilter
+    );
+      if queryResult is error {
+        // log:printError("Failed to fetch user rides", queryResult);
+        return utility:createErrorResponse(500, "No completed rides");
+    }
+    return utility:createSuccessResponse(200, {"rides":queryResult});
+}
+
