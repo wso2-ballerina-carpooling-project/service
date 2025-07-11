@@ -277,7 +277,6 @@ public function findMatchingRides(
         string accessToken,
         http:Request req,
         json date,
-        json time,
         boolean isWayToWork
 
 ) returns http:Response|error {
@@ -296,8 +295,7 @@ public function findMatchingRides(
     map<json> queryFilter = {
         "status": "active",
         "waytowork": isWayToWork,
-        "date": date,
-        "time": time
+        "date": date
     };
 
     map<json>[]|error queryResult = firebase:queryFirestoreDocuments(

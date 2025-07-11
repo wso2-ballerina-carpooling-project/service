@@ -66,9 +66,7 @@ service /api on new http:Listener(9090) {
         // Extract search parameters from JSON payload
 
         json dateJson = check payload.date;
-        json time = check payload.time;
         boolean isWayToWork = check payload.waytowork;
-        io:print(dateJson, time, isWayToWork);
 
         // Get access token from environment or configuration
         string accessToken = checkpanic firebase:generateAccessToken();
@@ -77,7 +75,6 @@ service /api on new http:Listener(9090) {
                 accessToken,
                 req,
                 dateJson,
-                time,
                 isWayToWork
         );
 

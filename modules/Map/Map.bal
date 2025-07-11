@@ -35,15 +35,12 @@ public function getDirection(http:Request req) returns http:Response|error {
         string encodedOrigin = check url:encode(origin, "UTF-8");
         string encodedDestination = check url:encode(destination, "UTF-8");
         
-        // Construct the request path with alternatives=true to get multiple routes
         string path = string `/maps/api/directions/json?origin=${encodedOrigin}&destination=${encodedDestination}&mode=${mode}&alternatives=true&key=${dirApiKey}`;
         
-        // Make the API request
         json response = check directionsClient->get(path);
         
         io:println(response);
 
-        // Process and display routes
         return utility:createSuccessResponse(200,response);
     }
     return utility:createErrorResponse(404,"No matching rides");
@@ -122,11 +119,7 @@ function removeHtmlTags(string htmlText) returns string {
 }
 
 public function searchSriLankaPlaces(string query) returns http:Response|error {
-    // Return empty array if query is less than 3 characters
-    
-    // API Key for Google Places API// Replace with your actual API key
-    
-    // Set up HTTP client configuration with reasonable timeouts
+
     http:ClientConfiguration clientConfig = {
         timeout: 30,
         retryConfig: {
@@ -137,13 +130,10 @@ public function searchSriLankaPlaces(string query) returns http:Response|error {
         }
     };
     
-    // Create HTTP client
     http:Client httpClient = check new ("https://places.googleapis.com", clientConfig);
     
-    // Use the new Places API (v1) instead of the legacy API
     string path = "/v1/places:searchText";
     
-    // Create the request payload for the new API
     json requestPayload = {
         "textQuery": query,
         "locationRestriction": {
