@@ -133,17 +133,96 @@ service /api on new http:Listener(9090) {
 
     }
 
+    resource function get passenger/[string passengerId](http:Request request) returns http:Response|error {
+        string|error accessToken = firebase:generateAccessToken();
+        if accessToken is error {
+            return utility:createErrorResponse(500, "Authentication failed");
+        }
+        json|error user = firebase:getFirestoreDocumentById(
+                "carpooling-c6aa5",
+                accessToken,
+                "users",
+                passengerId
+        );
+        if user is error {
+            // log:printError("Failed to fetch user rides", queryResult);
+            return utility:createErrorResponse(500, "No completed rides");
+        }
+        io:print(user);
+        return utility:createSuccessResponse(200, {"User": user});
+
+    }
+
     resource function post rides/calculateCost(http:Request req) returns http:Response|error {
         json|error payload = req.getJsonPayload();
         if payload is error {
             return utility:createErrorResponse(400, "Invalid JSON payload");
         }
 
-        json rideIdJson = check payload.rideId;
         float distance = check payload.distance;
         io:print(distance);
 
         return utility:createSuccessResponse(200, {"cost": distance * 89});
+    }
+
+    resource function post ride/cancel(http:Request req) returns http:Response|error {
+        json|error payload = req.getJsonPayload();
+        if payload is error {
+            return utility:createErrorResponse(400, "Invalid JSON payload");
+        }
+
+        string rideId = check payload.rideId;
+        io:print(rideId);
+        string reason = check payload.reason;
+        string|error accessToken = firebase:generateAccessToken();
+        if accessToken is error {
+            return utility:createErrorResponse(500, "Authentication failed");
+        }
+        map<json>|error rideDoc = firebase:getFirestoreDocumentById(
+                "carpooling-c6aa5",
+                accessToken,
+                "rides",
+                rideId
+            );
+        if rideDoc is error {
+            if rideDoc.message().includes("Document not found") {
+                return utility:createErrorResponse(404, "Ride not found");
+            }
+            return utility:createErrorResponse(500, "Failed to fetch ride details");
+        }
+
+        if rideDoc.length() == 0 {
+            return utility:createErrorResponse(404, "Ride not found");
+        }
+
+        string actualDocumentId = <string>rideDoc["id"];
+
+        map<json> updateData = {
+            "status": "cancel",
+            "reason": reason
+        };
+        json|error updateResult = firebase:mergeFirestoreDocument(
+                "carpooling-c6aa5",
+                accessToken,
+                "rides",
+                actualDocumentId,
+                updateData
+        );
+
+        if updateResult is error {
+            return utility:createErrorResponse(500, "Failed to book ride");
+        }
+        json successResponse = {
+            "message": "Ride cancel successfully",
+            "rideId": rideId,
+            "status": "cancel"
+        };
+
+        http:Response response = new;
+        response.statusCode = 200;
+        response.setJsonPayload(successResponse);
+        return response;
+
     }
 
 }
