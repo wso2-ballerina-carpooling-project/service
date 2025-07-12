@@ -1,13 +1,13 @@
 import 'service.Map;
 import 'service.auth;
 import 'service.firebase;
+import 'service.profile_management;
 import 'service.ride_management;
 import 'service.ride_management as ride_management1;
 import 'service.utility;
+
 import ballerina/http;
 import ballerina/io;
-import 'service.profile_management;
-
 
 service /api on new http:Listener(9090) {
     resource function post register(@http:Payload json payload) returns http:Response|error {
@@ -24,19 +24,20 @@ service /api on new http:Listener(9090) {
 
     resource function post editName(@http:Payload json payload, http:Request req) returns http:Response|error {
         string accessToken = checkpanic firebase:generateAccessToken();
-        http:Response|error response = profile_management:updateName(payload,req,accessToken);
+        http:Response|error response = profile_management:updateName(payload, req, accessToken);
         return response;
     }
+
     resource function post editPhone(@http:Payload json payload, http:Request req) returns http:Response|error {
         string accessToken = checkpanic firebase:generateAccessToken();
-        http:Response|error response = profile_management:updatePhone(payload,req,accessToken);
+        http:Response|error response = profile_management:updatePhone(payload, req, accessToken);
         return response;
     }
+
     resource function post updateVehicle(@http:Payload json payload, http:Request req) returns http:Response|error {
         http:Response|error response = profile_management:updateVehicle(req);
         return response;
     }
-    
 
     resource function post postRide(@http:Payload json payload, http:Request req) returns http:Response|error {
         string accessToken = checkpanic firebase:generateAccessToken();
@@ -85,20 +86,23 @@ service /api on new http:Listener(9090) {
         http:Response|error result = ride_management:book(req);
         return result;
     }
+
     resource function post driverRideInfor(http:Request req) returns http:Response|error {
         http:Response|error result = ride_management:getCompleteRide(req);
         return result;
     }
+
     resource function get ongoingDriverRide(http:Request req) returns http:Response|error {
         http:Response|error result = ride_management:getOngoingRide(req);
         return result;
     }
+
     resource function get cancelDriverRide(http:Request req) returns http:Response|error {
         http:Response|error result = ride_management:getCancelRide(req);
         return result;
     }
 
-    resource function post direction(http:Request req) returns http:Response|error{
+    resource function post direction(http:Request req) returns http:Response|error {
         return Map:getDirection(req);
     }
 
@@ -108,6 +112,39 @@ service /api on new http:Listener(9090) {
         http:Response|error results = Map:searchSriLankaPlaces(searchQuery);
         return results;
     }
-}
 
+    resource function get driver/[string driverId](http:Request request) returns http:Response|error {
+        string|error accessToken = firebase:generateAccessToken();
+        if accessToken is error {
+            return utility:createErrorResponse(500, "Authentication failed");
+        }
+        json|error user = firebase:getFirestoreDocumentById(
+                "carpooling-c6aa5",
+                accessToken,
+                "users",
+                driverId
+        );
+        if user is error {
+            // log:printError("Failed to fetch user rides", queryResult);
+            return utility:createErrorResponse(500, "No completed rides");
+        }
+        io:print(user);
+        return utility:createSuccessResponse(200, {"User": user});
+
+    }
+
+    resource function post rides/calculateCost(http:Request req) returns http:Response|error {
+        json|error payload = req.getJsonPayload();
+        if payload is error {
+            return utility:createErrorResponse(400, "Invalid JSON payload");
+        }
+
+        json rideIdJson = check payload.rideId;
+        float distance = check payload.distance;
+        io:print(distance);
+
+        return utility:createSuccessResponse(200, {"cost": distance * 89});
+    }
+
+}
 

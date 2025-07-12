@@ -334,6 +334,8 @@ public function book(http:Request req) returns http:Response|error {
 
     json rideIdJson = check payload.rideId;
     json waypointJson = check payload.waypoint;
+    json waypointlatlan = check payload.waypointLN;
+    json cost = check payload.cost;
 
     if rideIdJson is () || waypointJson is () {
         return utility:createErrorResponse(400, "Missing required fields: rideId, waypoint");
@@ -341,6 +343,17 @@ public function book(http:Request req) returns http:Response|error {
 
     string rideId = rideIdJson.toString();
     string waypoint = waypointJson.toString();
+
+    decimal? waypointLat = ();
+    decimal? waypointLng = ();
+
+    if waypointlatlan is json[] {
+        // Handle array format [latitude, longitude]
+        if waypointlatlan.length() >= 2 {
+            waypointLat = <decimal>waypointlatlan[0];
+            waypointLng = <decimal>waypointlatlan[1];
+        }
+    }
 
     string|error authHeader = req.getHeader("Authorization");
     if authHeader is error {
@@ -377,7 +390,7 @@ public function book(http:Request req) returns http:Response|error {
             queryFilter
         );
 
-    io:print(rideDoc);
+   
 
     if rideDoc is error {
         if rideDoc.message().includes("Document not found") {
@@ -409,12 +422,22 @@ public function book(http:Request req) returns http:Response|error {
     int seat = <int>rideDoc[0]["seat"];
     int newSeat = seat - 1;
 
+    map<json> waypointData = {};
+     io:print(waypointLat);
+
+
+    waypointData["latitude"] = waypointLat.toJson();
+    waypointData["longitude"] = waypointLng.toJson();
+
+
     map<json> newPassenger = {
         "passengerId": userId,
         "waypoint": waypoint,
+        "cost":cost,
         "bookingTime": time:utcNow()[0],
         "status": "confirmed"
     };
+    newPassenger["waypointLN"] = waypointData;
 
     existingPassengers.push(newPassenger);
 
