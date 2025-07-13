@@ -8,8 +8,15 @@ import 'service.utility;
 
 import ballerina/http;
 import ballerina/io;
+import 'service.notification;
 
 service /api on new http:Listener(9090) {
+
+    resource function get test() {
+        error? response = notification:sendSms("+94719297961","Hello from backend");
+        io:print(response);
+    }
+
     resource function post register(@http:Payload json payload) returns http:Response|error {
         string accessToken = checkpanic firebase:generateAccessToken();
         http:Response|error response = auth:register(payload, accessToken);
