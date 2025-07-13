@@ -1,6 +1,7 @@
 import 'service.Map;
 import 'service.auth;
 import 'service.firebase;
+import 'service.notification;
 import 'service.profile_management;
 import 'service.ride_management;
 import 'service.ride_management as ride_management1;
@@ -8,12 +9,12 @@ import 'service.utility;
 
 import ballerina/http;
 import ballerina/io;
-import 'service.notification;
+import ballerina/jwt;
 
 service /api on new http:Listener(9090) {
 
     resource function get test() {
-        error? response = notification:sendSms("+94719297961","Hello from backend");
+        error? response = notification:sendSms("+94719297961", "Hello from backend");
         io:print(response);
     }
 
@@ -27,6 +28,24 @@ service /api on new http:Listener(9090) {
         string accessToken = checkpanic firebase:generateAccessToken();
         http:Response|error response = auth:login(payload, accessToken);
         return response;
+    }
+
+    resource function post fcm(@http:Payload json payload) {
+        string accessToken = checkpanic firebase:generateAccessToken();
+        string? fcm = checkpanic payload.FCM.ensureType();
+        string id = checkpanic payload.userId.ensureType();
+        map<json> updateData = {
+            "fcm": fcm
+        };
+        json|error updateResult = firebase:mergeFirestoreDocument(
+                "carpooling-c6aa5",
+                accessToken,
+                "users",
+                id,
+                updateData
+        );
+        io:print(updateResult);
+
     }
 
     resource function post editName(@http:Payload json payload, http:Request req) returns http:Response|error {
@@ -118,6 +137,36 @@ service /api on new http:Listener(9090) {
         io:println("Searching for places matching: '" + searchQuery + "'");
         http:Response|error results = Map:searchSriLankaPlaces(searchQuery);
         return results;
+    }
+
+    resource function get notifications(http:Request req) returns http:Response|error{
+        string|error authHeader = req.getHeader("Authorization");
+        if authHeader is error {
+            return utility:createErrorResponse(404,"NotFound");
+        }
+
+        string jwtToken = authHeader.substring(7);
+
+        jwt:Payload|error tokenPayload = ride_management:verifyToken(jwtToken);
+        if tokenPayload is error {
+            return utility:createErrorResponse(404,"NotFound");
+        }
+        string|error accessToken = firebase:generateAccessToken();
+        if accessToken is error {
+            return utility:createErrorResponse(404,"NotFound");
+        }
+        string userId = <string>tokenPayload["id"];
+        map<json> queryFilter = {"user": userId};
+        map<json>[]|error queryResult = firebase:queryFirestoreDocuments(
+                "carpooling-c6aa5",
+                accessToken,
+                "notification",
+                queryFilter
+            );
+        if queryResult is error {
+            return utility:createErrorResponse(500, "Failed to book ride");
+        }
+        return utility:createSuccessResponse(200,{queryResult});
     }
 
     resource function get driver/[string driverId](http:Request request) returns http:Response|error {
@@ -230,6 +279,19 @@ service /api on new http:Listener(9090) {
         response.setJsonPayload(successResponse);
         return response;
 
+    }
+
+    resource function get passengerOngoingRide(http:Request req)returns http:Response|error  {
+        return ride_management:getPassengerOngoing(req);
+    }
+    resource function get passengerCancelRide(http:Request req)returns http:Response|error  {
+        return ride_management:getPassengerCancel(req);
+    }
+    resource function get passengerCompleteRide(http:Request req)returns http:Response|error  {
+        return ride_management:getPassengerComplete(req);
+    }
+    resource function post cancelBooking(http:Request req)returns http:Response|error  {
+        return ride_management:cancelPassengerBooking(req);
     }
 
 }

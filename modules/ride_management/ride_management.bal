@@ -7,6 +7,7 @@ import ballerina/jwt;
 import ballerina/log;
 import ballerina/time;
 import ballerina/uuid;
+import 'service.notification;
 
 configurable string publicKey = ?;
 
@@ -384,7 +385,7 @@ public function book(http:Request req) returns http:Response|error {
 
     map<json> queryFilter = {"rideId": rideId};
     map<json>[]|error rideDoc = firebase:queryFirestoreDocuments(
-                "carpooling-c6aa5",
+            "carpooling-c6aa5",
             accessToken,
             "rides",
             queryFilter
@@ -471,6 +472,39 @@ public function book(http:Request req) returns http:Response|error {
         "status": "confirmed",
         "bookingTime": time:utcNow()[0]
     };
+
+
+   
+    map<json>|error userDoc = firebase:getFirestoreDocumentById(
+        "carpooling-c6aa5",
+        accessToken,
+        "users",
+        driver
+    );
+    if(userDoc is error){
+
+    }else{
+        string fcm = checkpanic userDoc.fcm.ensureType();
+        string currentTime = time:utcNow().toString();
+        string massage =  string `New booking ${userId}`;
+        string|error response = notification:sendFCMNotification(fcm,"New Booking","New ride booking for your ride","carpooling-c6aa5");
+        map<json> notifyData = {
+            "user":driver,
+            "title": "New Ride Booking",
+            "massage" : massage,
+            "isread" : false,
+            "createdAt": currentTime
+        };
+        json|error createResult = firebase:createFirestoreDocument(
+            "carpooling-c6aa5",
+            accessToken,
+            "notification",
+            notifyData
+        );
+        io:print(createResult);
+        io:print(response);
+    }
+
 
     http:Response response = new;
     response.statusCode = 200;
@@ -617,5 +651,358 @@ public function getStartRide(string accessToken, http:Request req) returns http:
     }
     // io:print({"rides":rideDoc});
     return utility:createSuccessResponse(200, {"rides": rideDoc});
+}
+
+public function getPassengerOngoing(http:Request req) returns http:Response|error {
+    string|error authHeader = req.getHeader("Authorization");
+    if authHeader is error {
+        return utility:createErrorResponse(401, "Authorization header missing");
+    }
+
+    string jwtToken = authHeader.substring(7);
+
+    jwt:Payload|error tokenPayload = verifyToken(jwtToken);
+    if tokenPayload is error {
+        log:printError("JWT decode error: " + tokenPayload.message());
+        return utility:createErrorResponse(401, "Invalid token");
+    }
+    
+    string userId = <string>tokenPayload["id"];
+    io:print(userId);
+    
+    map<json> queryFilter = {"status": "active"};
+    string accessToken = checkpanic firebase:generateAccessToken();
+    
+    map<json>[]|error rideDoc = firebase:queryFirestoreDocuments(
+        "carpooling-c6aa5",
+        accessToken,
+        "rides",
+        queryFilter
+    );
+    
+    if rideDoc is error {
+        return utility:createErrorResponse(500, "Failed to fetch rides");
+    }
+    
+    // Filter rides where user is a confirmed passenger
+    map<json>[] userRides = [];
+    
+    foreach map<json> ride in rideDoc {
+        // Check if passengers array exists
+        if ride.hasKey("passengers") {
+            json passengersJson = ride["passengers"];
+            
+            // Convert to array if it's a valid array
+            if passengersJson is json[] {
+                foreach json passenger in passengersJson {
+                    if passenger is map<json> {
+                        // Check if this passenger matches the user and has confirmed status
+                        if passenger.hasKey("passengerId") && passenger.hasKey("status") {
+                            string passengerIdStr = passenger["passengerId"].toString();
+                            string statusStr = passenger["status"].toString();
+                            
+                            if passengerIdStr == userId && statusStr == "confirmed" {
+                                userRides.push(ride);
+                                break; // Found the user in this ride, no need to check other passengers
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if userRides.length() == 0 {
+        return utility:createSuccessResponse(200, {
+            "message": "No ongoing rides found for this passenger",
+            "rideDoc": []
+        });
+    }
+    
+    return utility:createSuccessResponse(200, {
+        "message": string `Found ${userRides.length()} ongoing ride(s)`,
+        "rideDoc": userRides
+    });
+}
+
+
+public function getPassengerCancel(http:Request req) returns http:Response|error {
+    string|error authHeader = req.getHeader("Authorization");
+    if authHeader is error {
+        return utility:createErrorResponse(401, "Authorization header missing");
+    }
+
+    string jwtToken = authHeader.substring(7);
+
+    jwt:Payload|error tokenPayload = verifyToken(jwtToken);
+    if tokenPayload is error {
+        log:printError("JWT decode error: " + tokenPayload.message());
+        return utility:createErrorResponse(401, "Invalid token");
+    }
+    
+    string userId = <string>tokenPayload["id"];
+    io:print(userId);
+    
+    map<json> queryFilter = {"status": "active"};
+    string accessToken = checkpanic firebase:generateAccessToken();
+    
+    map<json>[]|error rideDoc = firebase:queryFirestoreDocuments(
+        "carpooling-c6aa5",
+        accessToken,
+        "rides",
+        queryFilter
+    );
+    
+    if rideDoc is error {
+        return utility:createErrorResponse(500, "Failed to fetch rides");
+    }
+    
+    // Filter rides where user is a confirmed passenger
+    map<json>[] userRides = [];
+    
+    foreach map<json> ride in rideDoc {
+        // Check if passengers array exists
+        if ride.hasKey("passengers") {
+            json passengersJson = ride["passengers"];
+            
+            // Convert to array if it's a valid array
+            if passengersJson is json[] {
+                foreach json passenger in passengersJson {
+                    if passenger is map<json> {
+                        // Check if this passenger matches the user and has confirmed status
+                        if passenger.hasKey("passengerId") && passenger.hasKey("status") {
+                            string passengerIdStr = passenger["passengerId"].toString();
+                            string statusStr = passenger["status"].toString();
+                            
+                            if passengerIdStr == userId && statusStr == "cancel" {
+                                userRides.push(ride);
+                                break; // Found the user in this ride, no need to check other passengers
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if userRides.length() == 0 {
+        return utility:createSuccessResponse(200, {
+            "message": "No cancel rides found for this passenger",
+            "rideDoc": []
+        });
+    }
+    
+    return utility:createSuccessResponse(200, {
+        "message": string `Found ${userRides.length()} cacel ride(s)`,
+        "rideDoc": userRides
+    });
+}
+
+public function getPassengerComplete(http:Request req) returns http:Response|error {
+    string|error authHeader = req.getHeader("Authorization");
+    if authHeader is error {
+        return utility:createErrorResponse(401, "Authorization header missing");
+    }
+
+    string jwtToken = authHeader.substring(7);
+
+    jwt:Payload|error tokenPayload = verifyToken(jwtToken);
+    if tokenPayload is error {
+        log:printError("JWT decode error: " + tokenPayload.message());
+        return utility:createErrorResponse(401, "Invalid token");
+    }
+    
+    string userId = <string>tokenPayload["id"];
+    io:print(userId);
+    
+    map<json> queryFilter = {"status": "complete"};
+    string accessToken = checkpanic firebase:generateAccessToken();
+    
+    map<json>[]|error rideDoc = firebase:queryFirestoreDocuments(
+        "carpooling-c6aa5",
+        accessToken,
+        "rides",
+        queryFilter
+    );
+    
+    if rideDoc is error {
+        return utility:createErrorResponse(500, "Failed to fetch rides");
+    }
+    
+    // Filter rides where user is a confirmed passenger
+    map<json>[] userRides = [];
+    
+    foreach map<json> ride in rideDoc {
+        // Check if passengers array exists
+        if ride.hasKey("passengers") {
+            json passengersJson = ride["passengers"];
+            
+            // Convert to array if it's a valid array
+            if passengersJson is json[] {
+                foreach json passenger in passengersJson {
+                    if passenger is map<json> {
+                        // Check if this passenger matches the user and has confirmed status
+                        if passenger.hasKey("passengerId") && passenger.hasKey("status") {
+                            string passengerIdStr = passenger["passengerId"].toString();
+                            string statusStr = passenger["status"].toString();
+                            
+                            if passengerIdStr == userId && statusStr == "confirmed" {
+                                userRides.push(ride);
+                                break; // Found the user in this ride, no need to check other passengers
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if userRides.length() == 0 {
+        return utility:createSuccessResponse(200, {
+            "message": "No completed rides found for this passenger",
+            "rideDoc": []
+        });
+    }
+    
+    return utility:createSuccessResponse(200, {
+        "message": string `Found ${userRides.length()} completed ride(s)`,
+        "rideDoc": userRides
+    });
+}
+
+
+public function cancelPassengerBooking(http:Request req) returns http:Response|error {
+    // Get and verify authorization header
+    string|error authHeader = req.getHeader("Authorization");
+    if authHeader is error {
+        return utility:createErrorResponse(401, "Authorization header missing");
+    }
+
+    string jwtToken = authHeader.substring(7);
+    jwt:Payload|error tokenPayload = verifyToken(jwtToken);
+    if tokenPayload is error {
+        log:printError("JWT decode error: " + tokenPayload.message());
+        return utility:createErrorResponse(401, "Invalid token");
+    }
+
+    string userId = <string>tokenPayload["id"];
+
+    // Get request body to extract rideId
+    json|error requestBody = req.getJsonPayload();
+    if requestBody is error {
+        return utility:createErrorResponse(400, "Invalid JSON payload");
+    }
+
+    map<json> requestData = <map<json>>requestBody;
+    if !requestData.hasKey("rideId") {
+        return utility:createErrorResponse(400, "rideId is required");
+    }
+
+    string rideId = requestData["rideId"].toString();
+
+    // Generate access token for Firebase
+    string accessToken = checkpanic firebase:generateAccessToken();
+    map<json> queryFilter = {"rideId": rideId};
+    // First, get the specific ride document
+    map<json>[]|error rideDoc = firebase:queryFirestoreDocuments(
+        "carpooling-c6aa5",
+        accessToken,
+        "rides",
+        queryFilter
+    );
+
+    if rideDoc is error {
+        return utility:createErrorResponse(500, "Failed to fetch ride document");
+    }
+
+    // Check if the ride exists and is active
+    if !rideDoc[0].hasKey("status") || rideDoc[0]["status"].toString() != "active" {
+        return utility:createErrorResponse(400, "Ride is not active or does not exist");
+    }
+
+    // Check if passengers array exists
+    if !rideDoc[0].hasKey("passengers") {
+        return utility:createErrorResponse(400, "No passengers found in this ride");
+    }
+
+    json passengersJson = rideDoc[0]["passengers"];
+    if !(passengersJson is json[]) {
+        return utility:createErrorResponse(400, "Invalid passengers data structure");
+    }
+
+    json[] passengers = <json[]>passengersJson;
+    boolean passengerFound = false;
+    boolean alreadyCancelled = false;
+
+    // Find and update the passenger status
+    foreach int i in 0 ..< passengers.length() {
+        json passenger = passengers[i];
+        if passenger is map<json> {
+            if passenger.hasKey("passengerId") && passenger["passengerId"].toString() == userId {
+                passengerFound = true;
+                string currentStatus = passenger["status"].toString();
+                
+                if currentStatus == "cancel" {
+                    alreadyCancelled = true;
+                    break;
+                } else if currentStatus == "confirmed" {
+                    // Update passenger status to cancel
+                    map<json> updatedPassenger = passenger.clone();
+                    updatedPassenger["status"] = "cancel";
+                    passengers[i] = updatedPassenger;
+                    break;
+                } else {
+                    return utility:createErrorResponse(400, "Cannot cancel - passenger status is not confirmed");
+                }
+            }
+        }
+    }
+
+    if !passengerFound {
+        return utility:createErrorResponse(404, "Passenger not found in this ride");
+    }
+
+    if alreadyCancelled {
+        return utility:createErrorResponse(400, "Ride booking is already cancelled");
+    }
+
+    // Get current seat count and increment by 1
+    int currentSeat = 0;
+    if rideDoc[0].hasKey("seat") {
+        json seatJson = rideDoc[0]["seat"];
+        if seatJson is int {
+            currentSeat = seatJson;
+        }
+    }
+    int newSeatCount = currentSeat + 1;
+
+     string actualDocumentId = <string>rideDoc[0]["id"];
+
+    // Prepare update data
+    map<json> updateData = {
+        "passengers": passengers,
+        "seat": newSeatCount,
+        "updatedAt": time:utcNow()[0].toString() + "Z"
+    };
+
+    // Update the ride document
+    json|error updateResult = firebase:mergeFirestoreDocument(
+        "carpooling-c6aa5",
+        accessToken,
+        "rides",
+        actualDocumentId,
+        updateData
+    );
+
+    if updateResult is error {
+        log:printError("Failed to update ride document: " + updateResult.message());
+        return utility:createErrorResponse(500, "Failed to cancel ride booking");
+    }
+
+    return utility:createSuccessResponse(200, {
+        "message": "Ride booking cancelled successfully",
+        "rideId": rideId,
+        "newSeatCount": newSeatCount
+    });
 }
 
