@@ -47,7 +47,7 @@ public function register(@http:Payload json payload, string accessToken) returns
     string firstName = check payload.firstName.ensureType();
     string lastName = check payload.lastName.ensureType();
     string phone = check payload.phone.ensureType();
-    string role = check payload.role;
+    string role = check payload.role.ensureType();
 
     // Validate required fields
     if email is "" || password is "" || firstName is "" || lastName is "" || role is "" {
