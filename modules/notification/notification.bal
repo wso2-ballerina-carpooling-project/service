@@ -3,23 +3,9 @@ import ballerina/log;
 import 'service.firebase_auth;
 
 
-const string ACCOUNT_SID = "AC828160a52c3ccdb696fd99a524662d82";
-const string AUTH_TOKEN = "836d2499fff74750ab2cfd19eeed1829";
-const string MESSAGING_SERVICE_SID = "MGfa8d694de13f966cf23d7582bdf7e69d";
-
-// readonly & firebase_auth:ServiceAccount carpoolingServiceAccount = {
-//     'type: "service_account",
-//     project_id: "carpooling-c6aa5",
-//     private_key_id: "2fd2af918ece70aaeac202f17e73574e103c35bd",
-//     client_email: "firebase-adminsdk-fbsvc@carpooling-c6aa5.iam.gserviceaccount.com",
-//     client_id: "101149969796850194414",
-//     auth_uri: "https://accounts.google.com/o/oauth2/auth",
-//     token_uri: "https://oauth2.googleapis.com/token",
-//     auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-//     client_x509_cert_url: "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40carpooling-c6aa5.iam.gserviceaccount.com",
-//     universe_domain: "googleapis.com"
-// };
-
+configurable string ACCOUNT_SID = ?;
+configurable string AUTH_TOKEN = ?;
+configurable string MESSAGING_SERVICE_SID = ?;
 configurable firebase_auth:ServiceAccount serviceAccount = ?;
 configurable string keyPath = ?;
 
