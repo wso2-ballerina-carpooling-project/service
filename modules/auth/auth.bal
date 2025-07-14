@@ -47,7 +47,9 @@ public function register(@http:Payload json payload, string accessToken) returns
     string firstName = check payload.firstName.ensureType();
     string lastName = check payload.lastName.ensureType();
     string phone = check payload.phone.ensureType();
-    string role = check payload.role.ensureType();
+    string? role = check payload.role;
+
+    io:print(payload);
 
     // Validate required fields
     if email is "" || password is "" || firstName is "" || lastName is "" || role is "" {
@@ -122,7 +124,7 @@ public function register(@http:Payload json payload, string accessToken) returns
         "role": role,
         "status": "pending",  // All new users start as pending
         "passwordHash": passwordHash,
-        "driverDetails": vehicleData,
+        "driverDetails": vehicleData is () ? () : vehicleData,
         "createdAt": currentTime
     };
 
