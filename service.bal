@@ -1,7 +1,6 @@
 import 'service.Map;
 import 'service.auth;
 import 'service.firebase;
-import 'service.notification;
 import 'service.profile_management;
 import 'service.ride_management;
 import 'service.ride_management as ride_management1;
@@ -10,12 +9,21 @@ import 'service.utility;
 import ballerina/http;
 import ballerina/io;
 import ballerina/jwt;
+import 'service.call;
 
 service /api on new http:Listener(9090) {
 
-    resource function get test() {
-        error? response = notification:sendSms("+94719297961", "Hello from backend");
-        io:print(response);
+    resource function post call(@http:Payload json payload) {
+        string phone = checkpanic payload.phone.ensureType();
+        string validPhone = call:formatSriLankanPhoneNumber(phone);
+        json|error result = call:executeFlow(validPhone, "+16205319231");
+        if result is json {
+            io:println("Flow execution successful:");
+            io:println(result.toString());
+        } else {
+            // Handle error
+            io:println("Error executing flow: ", result.message());
+        }
     }
 
     resource function post register(@http:Payload json payload) returns http:Response|error {

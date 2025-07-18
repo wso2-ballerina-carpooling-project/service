@@ -55,3 +55,21 @@ public type LatLng record {
 };
 
 //websocket
+
+
+public type CallRequest record {
+    string callerPhone;
+    string calleePhone;
+};
+
+public type CallResponse record {
+    boolean success;
+    string message;
+    string? callSid;
+};
+
+public type ErrorResponse record {
+    boolean success = false;
+    string message;
+    string? errorCode;
+};
