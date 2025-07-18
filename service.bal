@@ -11,6 +11,7 @@ import ballerina/http;
 import ballerina/io;
 import ballerina/jwt;
 
+
 service /api on new http:Listener(9090) {
 
     resource function get test() {
@@ -293,6 +294,53 @@ service /api on new http:Listener(9090) {
     resource function post cancelBooking(http:Request req)returns http:Response|error  {
         return ride_management:cancelPassengerBooking(req);
     }
+
+
+
+
+
+    resource function get reports/admin(http:Request req) returns http:Response|error {
+    string|error accessToken = firebase:generateAccessToken();
+    if accessToken is error {
+        return utility:createErrorResponse(500, "Authentication failed");
+    }
+
+    // Get ALL rides (no filter)
+    map<json> queryFilter = {};
+
+    // Query all rides in your Firestore 'rides' collection
+    map<json>[]|error queryResult = firebase:queryFirestoreDocuments(
+        "carpooling-c6aa5", // project ID
+        accessToken,
+        "rides",            // collection name
+        queryFilter
+    );
+    if queryResult is error {
+        return utility:createErrorResponse(500, "Failed to load rides data");
+    }
+
+    // Format response for frontend
+    json[] rides = [];
+    foreach var ride in queryResult {
+        map<json> rideMap = <map<json>>ride;
+        string fromVal = rideMap.hasKey("from") ? <string>rideMap["from"] : "";
+        string toVal = rideMap.hasKey("to") ? <string>rideMap["to"] : "";
+        string driver = rideMap.hasKey("driverName") ? <string>rideMap["driverName"] : (rideMap.hasKey("driver") ? <string>rideMap["driver"] : "");
+        string date = rideMap.hasKey("date") ? <string>rideMap["date"] : "";
+        rides.push({"from": fromVal, "to": toVal, "driver": driver, "date": date});
+    }
+
+    json responsePayload = {
+        totalRides: rides.length(),
+        rides: rides
+    };
+
+    http:Response res = new;
+    res.statusCode = 200;
+    res.setJsonPayload(responsePayload);
+    return res;
+}
+
 
 }
 
