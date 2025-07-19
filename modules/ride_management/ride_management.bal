@@ -487,7 +487,10 @@ public function book(http:Request req) returns http:Response|error {
         string fcm = checkpanic userDoc.fcm.ensureType();
         string currentTime = time:utcNow().toString();
         string massage =  string `New booking ${userId}`;
-        string|error response = notification:sendFCMNotification(fcm,"New Booking","New ride booking for your ride","carpooling-c6aa5");
+        map<string> data = {
+            "callId": "No data"
+        };
+        string|error response = notification:sendFCMNotification(fcm,"New Booking","New ride booking for your ride","carpooling-c6aa5",data);
         map<json> notifyData = {
             "user":driver,
             "title": "New Ride Booking",

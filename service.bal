@@ -13,18 +13,18 @@ import 'service.call;
 
 service /api on new http:Listener(9090) {
 
-    resource function post call(@http:Payload json payload) {
-        string phone = checkpanic payload.phone.ensureType();
-        string validPhone = call:formatSriLankanPhoneNumber(phone);
-        json|error result = call:executeFlow(validPhone, "+16205319231");
-        if result is json {
-            io:println("Flow execution successful:");
-            io:println(result.toString());
-        } else {
-            // Handle error
-            io:println("Error executing flow: ", result.message());
-        }
-    }
+    // resource function post call(@http:Payload json payload) {
+    //     string phone = checkpanic payload.phone.ensureType();
+    //     string validPhone = call:formatSriLankanPhoneNumber(phone);
+    //     json|error result = call:executeFlow(validPhone, "+16205319231");
+    //     if result is json {
+    //         io:println("Flow execution successful:");
+    //         io:println(result.toString());
+    //     } else {
+    //         // Handle error
+    //         io:println("Error executing flow: ", result.message());
+    //     }
+    // }
 
     resource function post register(@http:Payload json payload) returns http:Response|error {
         string accessToken = checkpanic firebase:generateAccessToken();
@@ -300,6 +300,10 @@ service /api on new http:Listener(9090) {
     }
     resource function post cancelBooking(http:Request req)returns http:Response|error  {
         return ride_management:cancelPassengerBooking(req);
+    }
+
+    resource function post initiateCall(http:Request req) returns  http:Response|error {
+        return call:call(req);
     }
 
 }

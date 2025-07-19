@@ -51,7 +51,7 @@ type FCMPayload record {|
 |};
 final string FCM_BASE_URL = "https://fcm.googleapis.com/v1/projects/";
 
-public function sendFCMNotification(string deviceToken, string title, string body, string projectId) returns string|error {
+public function sendFCMNotification(string deviceToken, string title, string body, string projectId,map<string> data) returns string|error {
     string accessToken = check generateAccessTokenFCM();
     
     // Prepare FCM payload
@@ -61,7 +61,8 @@ public function sendFCMNotification(string deviceToken, string title, string bod
             notification: {
                 title: title,
                 body: body
-            }
+            },
+            data: data
         }
     };
     

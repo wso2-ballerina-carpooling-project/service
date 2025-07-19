@@ -1,76 +1,82 @@
+import 'service.firebase;
+import 'service.notification;
+import 'service.utility;
+
 import ballerina/http;
-import ballerina/mime;
+import ballerina/uuid;
 
-const string TWILIO_ACCOUNT_SID = "AC828160a52c3ccdb696fd99a524662d82";
-const string TWILIO_AUTH_TOKEN = "836d2499fff74750ab2cfd19eeed1829";
-const string FLOW_ID = "FWe8478ba2c5c783e39e1cf3b37ac736b3";
-const string BASE_URL = "https://studio.twilio.com/v2";
+public function call(http:Request req) returns http:Response|error {
+    json payload = check req.getJsonPayload();
+    string callerId = check payload.callerId.ensureType();
+    string receiverId = check payload.receiverId.ensureType();
+    string channelName = uuid:createType1AsString();
+    string callId = uuid:createType1AsString();
 
-// HTTP client with basic auth
-http:Client twilioClient = check new (BASE_URL, {
-    auth: {
-        username: TWILIO_ACCOUNT_SID,
-        password: TWILIO_AUTH_TOKEN
+    // Generate Agora token (placeholder; use Agora SDK or REST API in production)
+
+    // Store call details in Firestore
+    map<json> callData = {
+            "callerId": callerId,
+            "receiverId": receiverId,
+            "channelName": channelName,
+            "status": "initiated"
+        };
+    string|error accessToken = firebase:generateAccessToken();
+    if accessToken is error {
+        return utility:createErrorResponse(500, "Authentication failed");
     }
-});
 
-public function executeFlow(string toNumber, string fromNumber) returns json|error {
-    // Prepare form data
-    string formData = string `To=${toNumber}&From=${fromNumber}`;
-    
-    // Set headers
-    map<string> headers = {
-        "Content-Type": mime:APPLICATION_FORM_URLENCODED
-    };
-    
-    // Make the POST request
-    http:Response response = check twilioClient->post(
-        string `/Flows/${FLOW_ID}/Executions`,
-        formData,
-        headers
-    );
-    
-    // Return the JSON response
-    return response.getJsonPayload();
-}
+    json|error createResult = firebase:createFirestoreDocument(
+            "carpooling-c6aa5",
+            accessToken,
+            "call",
+            callData
+        );
 
-// Alternative function with error handling and return type
-public function executeTwilioFlow(string toNumber, string fromNumber) returns ExecutionResult|error {
-    json response = check executeFlow(toNumber, fromNumber);
-    
-    return {
-        success: true,
-        data: response,
-        message: "Flow executed successfully"
-    };
-}
+    json|error queryResult = firebase:getFirestoreDocumentById(
+            "carpooling-c6aa5",
+            accessToken,
+            "users",
+            receiverId
+        );
 
-// Response type definition
-public type ExecutionResult record {
-    boolean success;
-    json data?;
-    string message;
+    if (queryResult is error) {
+        return utility:createErrorResponse(400, "Server error");
+    }
+
+    map<string> data = {
+        "callId": callId,
+        "callerId": callerId,
+        "channelName": channelName
 };
+    // Get receiver's FCM token
+    if (queryResult is json) {
+        if (queryResult is map<json>) {
+            string fcm = queryResult["fcm"].toString();
+            string|error notifi = notification:sendFCMNotification(fcm, "Calling", "Carpool Driver Calling", "carpooling-c6aa5", data);
+        }
+    }
 
-public function formatSriLankanPhoneNumber(string phone) returns string {
-    // Remove any whitespace
-    string cleanPhone = phone.trim();
-    
-    // If phone starts with "0", remove it and add "+94"
-    if cleanPhone.startsWith("0") {
-        return "+94" + cleanPhone.substring(1);
-    }
-    
-    // If phone starts with "94", add "+"
-    if cleanPhone.startsWith("94") {
-        return "+" + cleanPhone;
-    }
-    
-    // If phone already starts with "+94", return as is
-    if cleanPhone.startsWith("+94") {
-        return cleanPhone;
-    }
-    
-    // For any other case, assume it's a local number without leading 0
-    return "+94" + cleanPhone;
+    // Send FCM notification
+    // fcm:Message message = {
+    //     token: receiverFcmToken,
+    //     notification: {
+    //         title: "Incoming Call",
+    //         body: "Call from user"
+    //     },
+    //     data: {
+    //         "callId": callId,
+    //         "callerId": callerId,
+    //         "channelName": channelName,
+    //         "agoraToken": agoraToken
+    //     }
+    // };
+    // check fcmClient->send(message);
+
+    // Respond to caller
+    json response = {
+            "callId": callId,
+            "channelName": channelName
+        };
+    return utility:createSuccessResponse(200, response);
 }
