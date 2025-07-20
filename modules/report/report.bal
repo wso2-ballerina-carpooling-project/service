@@ -2,6 +2,9 @@ import 'service.firebase;
 
 import ballerina/log;
 import ballerina/time;
+import 'service.utility;
+import ballerina/http;
+import ballerina/io;
 
 public function paymentUpdate(string rideId) {
 
@@ -113,6 +116,92 @@ public function paymentUpdate(string rideId) {
                 ", driver: " + driverId + ", amount: " + totalEarnings.toString());
 }
 
-public function driverEarning(string id) {
 
+// Response record for user earnings
+public type UserEarningsResponse record {
+    string userId;
+    decimal pendingEarnings;
+    decimal totalEarnings;
+    int rideCount;
+    string currency;
+    string timestamp;
+};
+
+// Error response record
+public type ErrorResponse record {
+    string message;
+    string timestamp;
+};
+
+public function getUserEarnings(string userId) returns http:Response|ErrorResponse {
+    
+    // Generate access token with proper error handling
+    string|error accessToken = firebase:generateAccessToken();
+    if accessToken is error {
+        log:printError("Failed to generate access token", accessToken);
+        return {
+            message: "Authentication failed",
+            timestamp: time:utcToString(time:utcNow())
+        };
+    }
+    
+    // Query for all payment records for this user
+    map<json> queryFilter = {"user": userId};
+    
+    map<json>[]|error paymentDocs = firebase:queryFirestoreDocuments(
+        "carpooling-c6aa5",
+        accessToken,
+        "payments",
+        queryFilter
+    );
+
+    if paymentDocs is error {
+        log:printError("Failed to query payment documents");
+        return {
+            message: "Failed to fetch payment data",
+            timestamp: time:utcToString(time:utcNow())
+        };
+    }
+
+    // Initialize counters
+    decimal pendingEarnings = 0.0d;
+    decimal totalEarnings = 0.0d;
+    int rideCount = paymentDocs.length();
+    int pendingPaymentRideCount = 0;
+
+    // Process each payment record
+    foreach map<json> payment in paymentDocs {
+        
+        // Extract amount
+        json amountJson = payment["amount"];
+        decimal amount = 0.0d;
+        
+  
+        decimal|error parsedAmount = decimal:fromString(<string>amountJson);
+        if parsedAmount is decimal {
+            amount = parsedAmount;
+        }
+        
+        // Add to total earnings
+        totalEarnings += amount;
+        
+        // Check if payment is pending (not paid)
+        boolean isPaid = <boolean>payment["isPaid"];
+        io:print(isPaid);
+
+        
+        
+        
+        // If not paid, add to pending earnings
+        if !isPaid {
+            pendingEarnings += amount;
+            pendingPaymentRideCount+=1;
+        }
+    }
+
+    log:printInfo(string `User earnings calculated - UserId: ${userId}, Total: ${totalEarnings}, Pending: ${pendingEarnings}, Rides: ${rideCount}`);
+
+
+    return utility:createSuccessResponse(200,{"userId":userId,"pendingEarnings":pendingEarnings,"totalEarnings":totalEarnings,"totalRideCount":rideCount,"pendingPaymentRideCount":pendingPaymentRideCount});
 }
+

@@ -10,6 +10,7 @@ import 'service.utility;
 import ballerina/http;
 import ballerina/io;
 import ballerina/jwt;
+import 'service.report;
 
 service /api on new http:Listener(9090) {
 
@@ -229,10 +230,11 @@ service /api on new http:Listener(9090) {
         return utility:createSuccessResponse(200, {"cost": distance * 89});
     }
 
-    resource function post rides/begin(http:Request req) returns http:Response|error{
+    resource function post rides/begin(http:Request req) returns http:Response|error {
         return ride_management:startride(req);
     }
-    resource function post rides/end(http:Request req) returns http:Response|error{
+
+    resource function post rides/end(http:Request req) returns http:Response|error {
         return ride_management:endride(req);
     }
 
@@ -258,6 +260,25 @@ service /api on new http:Listener(9090) {
 
     resource function post initiateCall(http:Request req) returns http:Response|error {
         return call:call(req);
+    }
+
+    //Report
+
+    resource function get earnings(http:Request req) returns http:Response|error {
+        json|error payload = req.getJsonPayload();
+        if payload is error {
+            return utility:createErrorResponse(400, "Invalid JSON payload");
+        }
+
+        string userId = check payload.userId;
+        
+        http:Response|report:ErrorResponse result = report:getUserEarnings(userId);
+
+        if result is report:ErrorResponse {
+            return utility:createErrorResponse(400,"Server error");
+        }
+
+        return result;
     }
 
 }
