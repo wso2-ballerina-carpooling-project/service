@@ -736,7 +736,8 @@ public function getPassengerOngoing(http:Request req) returns http:Response|erro
                             string passengerIdStr = passenger["passengerId"].toString();
                             string statusStr = passenger["status"].toString();
                             io:print("methanata awa");
-                            if passengerIdStr == userId && statusStr == "start" {
+                            if passengerIdStr == userId && statusStr == "confirmed" {
+                                io:print("one found");
                                 userRides.push(ride);
                                 break; // Found the user in this ride, no need to check other passengers
                             }
