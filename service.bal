@@ -229,8 +229,8 @@ service /api on new http:Listener(9090) {
         return utility:createSuccessResponse(200, {"cost": distance * 89});
     }
 
-    resource function post rides/begin(http:Request req) {
-        ride_management
+    resource function post rides/begin(http:Request req) returns http:Response|error{
+        return ride_management:startride(req);
     }
 
     resource function post ride/cancel(http:Request req) returns http:Response|error {
