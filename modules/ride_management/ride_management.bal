@@ -1137,3 +1137,108 @@ public function cancelDriverRide(http:Request req) returns http:Response|error {
     return response;
 
 }
+
+public function startride(http:Request req) returns http:Response|error {
+    json|error payload = req.getJsonPayload();
+    if payload is error {
+        return utility:createErrorResponse(400, "Invalid JSON payload");
+    }
+
+    string rideId = check payload.rideId;
+    io:print(rideId);
+    string reason = check payload.reason;
+    string|error accessToken = firebase:generateAccessToken();
+    if accessToken is error {
+        return utility:createErrorResponse(500, "Authentication failed");
+    }
+    map<json>|error rideDoc = firebase:getFirestoreDocumentById(
+            "carpooling-c6aa5",
+            accessToken,
+            "rides",
+            rideId
+            );
+    if rideDoc is error {
+        if rideDoc.message().includes("Document not found") {
+            return utility:createErrorResponse(404, "Ride not found");
+        }
+        return utility:createErrorResponse(500, "Failed to fetch ride details");
+    }
+
+    if rideDoc.length() == 0 {
+        return utility:createErrorResponse(404, "Ride not found");
+    }
+
+    string actualDocumentId = <string>rideDoc["id"];
+
+    map<json> updateData = {
+        "status": "start"
+    };
+    json|error updateResult = firebase:mergeFirestoreDocument(
+            "carpooling-c6aa5",
+            accessToken,
+            "rides",
+            actualDocumentId,
+            updateData
+        );
+
+    if updateResult is error {
+        return utility:createErrorResponse(500, "Failed to book ride");
+    }
+    string message = string `Your booked ride was started. Be ready`;
+    json passengersJson = rideDoc["passengers"];
+    if (passengersJson is json[]) {
+        json[] passengers = <json[]>passengersJson;
+        foreach int i in 0 ..< passengers.length() {
+            json passenger = passengers[i];
+            if passenger is map<json> {
+                if passenger.hasKey("passengerId") {
+                    string PID = check passenger["passengerId"].ensureType();
+                    map<json>|error passengerDoc = firebase:getFirestoreDocumentById(
+                            "carpooling-c6aa5",
+                            accessToken,
+                            "users",
+                            PID
+                        );
+                    if (passengerDoc is error) {
+                        break;
+                    }
+
+                    string number = check passengerDoc["phone"].ensureType();
+                    string internationalNumber1 = "+94" + number.substring(1);
+                    error? response = notification:sendsms(internationalNumber1, message);
+                    io:print(response);
+
+                    string fcm = passengerDoc["fcm"].toString();
+                    string|error notifires = notification:sendFCMNotification(fcm, "Ride started", message, "carpooling-c6aa5");
+                    io:print(notifires);
+                    string currentTime = time:utcNow().toString();
+                    map<json> notifyData = {
+                        "user": PID,
+                        "title": "Ride Start",
+                        "massage": message,
+                        "isread": false,
+                        "createdAt": currentTime
+                    };
+                    json|error createResult = firebase:createFirestoreDocument(
+                            "carpooling-c6aa5",
+                            accessToken,
+                            "notification",
+                            notifyData
+                    );
+                    io:print(createResult);
+                }
+            }
+        }
+    }
+    json successResponse = {
+        "message": "Ride start successfully",
+        "rideId": rideId,
+        "status": "start"
+    };
+
+    http:Response response = new;
+    response.statusCode = 200;
+    response.setJsonPayload(successResponse);
+    return response;
+
+}
