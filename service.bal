@@ -232,6 +232,9 @@ service /api on new http:Listener(9090) {
     resource function post rides/begin(http:Request req) returns http:Response|error{
         return ride_management:startride(req);
     }
+    resource function post rides/end(http:Request req) returns http:Response|error{
+        return ride_management:endride(req);
+    }
 
     resource function post ride/cancel(http:Request req) returns http:Response|error {
         return ride_management:cancelDriverRide(req);
