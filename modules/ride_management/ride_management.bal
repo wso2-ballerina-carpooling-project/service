@@ -1315,7 +1315,7 @@ public function endride(http:Request req) returns http:Response|error {
     string actualDocumentId = <string>rideDoc[0]["id"];
 
     map<json> updateData = {
-        "status": "complete"
+        "status": "completed"
     };
     json|error updateResult = firebase:mergeFirestoreDocument(
             "carpooling-c6aa5",
