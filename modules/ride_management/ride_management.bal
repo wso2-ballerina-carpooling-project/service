@@ -683,7 +683,7 @@ public function getPassengerOngoing(http:Request req) returns http:Response|erro
         "carpooling-c6aa5",
         accessToken,
         "rides",
-        queryFilter
+        queryFilter2
     );
 
     if rideDoc is error {
@@ -692,6 +692,7 @@ public function getPassengerOngoing(http:Request req) returns http:Response|erro
     if rideDoc2 is error {
         return utility:createErrorResponse(500, "Failed to fetch rides");
     }
+    // io:print(rideDoc2);
 
     // Filter rides where user is a confirmed passenger
     map<json>[] userRides = [];
@@ -720,6 +721,7 @@ public function getPassengerOngoing(http:Request req) returns http:Response|erro
             }
         }
     }
+    io:print(userRides.length());
     foreach map<json> ride in rideDoc2 {
         // Check if passengers array exists
         if ride.hasKey("passengers") {
@@ -733,8 +735,8 @@ public function getPassengerOngoing(http:Request req) returns http:Response|erro
                         if passenger.hasKey("passengerId") && passenger.hasKey("status") {
                             string passengerIdStr = passenger["passengerId"].toString();
                             string statusStr = passenger["status"].toString();
-
-                            if passengerIdStr == userId && statusStr == "confirmed" {
+                            io:print("methanata awa");
+                            if passengerIdStr == userId && statusStr == "start" {
                                 userRides.push(ride);
                                 break; // Found the user in this ride, no need to check other passengers
                             }
