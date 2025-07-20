@@ -3,6 +3,7 @@ import 'service.auth;
 import 'service.call;
 import 'service.firebase;
 import 'service.profile_management;
+import 'service.report;
 import 'service.ride_management;
 import 'service.ride_management as ride_management1;
 import 'service.utility;
@@ -10,7 +11,8 @@ import 'service.utility;
 import ballerina/http;
 import ballerina/io;
 import ballerina/jwt;
-import 'service.report;
+
+map<string> userNumbers = {"userA": "+94719297961", "userB": "+715593983"};
 
 service /api on new http:Listener(9090) {
 
@@ -26,6 +28,36 @@ service /api on new http:Listener(9090) {
     //         io:println("Error executing flow: ", result.message());
     //     }
     // }
+
+    resource function post call(http:Caller caller, http:Request req) returns error? {
+        json|error payload = req.getJsonPayload();
+        if payload is error {
+            return error("Something went wrong");
+        }
+        json fromJson = check payload.fromUser;
+        json toJson = check payload.toUser;
+        string fromUser =  fromJson.toString();
+        string toUser = toJson.toString();
+
+        if fromUser is "" || toUser is "" {
+            check caller->respond("Missing 'from' or 'to' user");
+            return;
+        }
+
+        string fromNumber = check userNumbers[fromUser].ensureType();
+        string toNumber = check userNumbers[toUser].ensureType();
+
+        string twiml = string `<?xml version="1.0" encoding="UTF-8"?>
+            <Response>
+                <Dial callerId="${fromNumber}">
+                    <Number>${toNumber}</Number>
+                </Dial>
+            </Response>`;
+        http:Response resp = new;
+        resp.setPayload(twiml);
+        resp.setHeader("Content-Type", "application/xml");
+        check caller->respond(resp);
+    }
 
     resource function post register(@http:Payload json payload) returns http:Response|error {
         string accessToken = checkpanic firebase:generateAccessToken();
@@ -271,11 +303,11 @@ service /api on new http:Listener(9090) {
         }
 
         string userId = check payload.userId;
-        
+
         http:Response|report:ErrorResponse result = report:getUserEarnings(userId);
 
         if result is report:ErrorResponse {
-            return utility:createErrorResponse(400,"Server error");
+            return utility:createErrorResponse(400, "Server error");
         }
 
         return result;
