@@ -12,7 +12,7 @@ import ballerina/http;
 import ballerina/io;
 import ballerina/jwt;
 
-map<string> userNumbers = {"userA": "+94719297961", "userB": "+715593983"};
+map<string> userNumbers = {"userA": "+94719297961", "userB": "+94715593983"};
 
 service /api on new http:Listener(9090) {
 
