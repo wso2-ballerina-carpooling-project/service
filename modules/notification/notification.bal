@@ -1,13 +1,25 @@
 import ballerina/http;
 import ballerina/log;
 import 'service.firebase_auth;
+import ballerinax/twilio;
+import ballerina/io;
 
 
-configurable string ACCOUNT_SID = ?;
-configurable string AUTH_TOKEN = ?;
-configurable string MESSAGING_SERVICE_SID = ?;
 configurable firebase_auth:ServiceAccount serviceAccount = ?;
 configurable string keyPath = ?;
+configurable string apiKey = ?;
+configurable string apiSecret = ?;
+configurable string accountSid = ?;
+
+twilio:ConnectionConfig twilioConfig = {
+    auth: {
+        apiKey,
+        apiSecret,
+        accountSid
+    }
+};
+
+twilio:Client twilio = check new (twilioConfig);
 
 function generateAccessTokenFCM() returns string|error {
     firebase_auth:AuthConfig authConfig = {
@@ -51,7 +63,7 @@ type FCMPayload record {|
 |};
 final string FCM_BASE_URL = "https://fcm.googleapis.com/v1/projects/";
 
-public function sendFCMNotification(string deviceToken, string title, string body, string projectId,map<string> data) returns string|error {
+public function sendFCMNotification(string deviceToken, string title, string body, string projectId,map<string> data={}) returns string|error {
     string accessToken = check generateAccessTokenFCM();
     
     // Prepare FCM payload
@@ -88,28 +100,16 @@ public function sendFCMNotification(string deviceToken, string title, string bod
     }
 }
 
-
-
-
-public function sendSms(string to, string messageBody) returns error? {
-    string url = string `https://api.twilio.com/2010-04-01/Accounts/${ACCOUNT_SID}/Messages.json`;
-
-    http:Client twilioClient = check new (url, {
-        auth: {
-            username: ACCOUNT_SID,
-            password: AUTH_TOKEN
-        }
-    });
-
-    map<string> formData = {
-        "To": to,
-        "MessagingServiceSid": MESSAGING_SERVICE_SID,
-        "Body": messageBody
+public function sendsms(string number,string massage) returns error? {
+    twilio:CreateMessageRequest messageRequest = {
+        To: number, 
+        From: "+13185953040", 
+        Body: massage
     };
 
-    http:Response response = check twilioClient->post("", formData, {
-        "Content-Type": "application/x-www-form-urlencoded"
-    });
-    json result = check response.getJsonPayload();
-    log:printInfo("📲 SMS Sent. Twilio SID: " + result.toJsonString());
+    twilio:Message response = check twilio->createMessage(messageRequest);
+    io:print(response);
 }
+
+
+

@@ -1,5 +1,6 @@
 import 'service.Map;
 import 'service.auth;
+import 'service.call;
 import 'service.firebase;
 import 'service.profile_management;
 import 'service.ride_management;
@@ -9,7 +10,6 @@ import 'service.utility;
 import ballerina/http;
 import ballerina/io;
 import ballerina/jwt;
-import 'service.call;
 
 service /api on new http:Listener(9090) {
 
@@ -147,21 +147,21 @@ service /api on new http:Listener(9090) {
         return results;
     }
 
-    resource function get notifications(http:Request req) returns http:Response|error{
+    resource function get notifications(http:Request req) returns http:Response|error {
         string|error authHeader = req.getHeader("Authorization");
         if authHeader is error {
-            return utility:createErrorResponse(404,"NotFound");
+            return utility:createErrorResponse(404, "NotFound");
         }
 
         string jwtToken = authHeader.substring(7);
 
         jwt:Payload|error tokenPayload = ride_management:verifyToken(jwtToken);
         if tokenPayload is error {
-            return utility:createErrorResponse(404,"NotFound");
+            return utility:createErrorResponse(404, "NotFound");
         }
         string|error accessToken = firebase:generateAccessToken();
         if accessToken is error {
-            return utility:createErrorResponse(404,"NotFound");
+            return utility:createErrorResponse(404, "NotFound");
         }
         string userId = <string>tokenPayload["id"];
         map<json> queryFilter = {"user": userId};
@@ -174,7 +174,7 @@ service /api on new http:Listener(9090) {
         if queryResult is error {
             return utility:createErrorResponse(500, "Failed to book ride");
         }
-        return utility:createSuccessResponse(200,{queryResult});
+        return utility:createSuccessResponse(200, {queryResult});
     }
 
     resource function get driver/[string driverId](http:Request request) returns http:Response|error {
@@ -230,79 +230,26 @@ service /api on new http:Listener(9090) {
     }
 
     resource function post ride/cancel(http:Request req) returns http:Response|error {
-        json|error payload = req.getJsonPayload();
-        if payload is error {
-            return utility:createErrorResponse(400, "Invalid JSON payload");
-        }
-
-        string rideId = check payload.rideId;
-        io:print(rideId);
-        string reason = check payload.reason;
-        string|error accessToken = firebase:generateAccessToken();
-        if accessToken is error {
-            return utility:createErrorResponse(500, "Authentication failed");
-        }
-        map<json>|error rideDoc = firebase:getFirestoreDocumentById(
-                "carpooling-c6aa5",
-                accessToken,
-                "rides",
-                rideId
-            );
-        if rideDoc is error {
-            if rideDoc.message().includes("Document not found") {
-                return utility:createErrorResponse(404, "Ride not found");
-            }
-            return utility:createErrorResponse(500, "Failed to fetch ride details");
-        }
-
-        if rideDoc.length() == 0 {
-            return utility:createErrorResponse(404, "Ride not found");
-        }
-
-        string actualDocumentId = <string>rideDoc["id"];
-
-        map<json> updateData = {
-            "status": "cancel",
-            "reason": reason
-        };
-        json|error updateResult = firebase:mergeFirestoreDocument(
-                "carpooling-c6aa5",
-                accessToken,
-                "rides",
-                actualDocumentId,
-                updateData
-        );
-
-        if updateResult is error {
-            return utility:createErrorResponse(500, "Failed to book ride");
-        }
-        json successResponse = {
-            "message": "Ride cancel successfully",
-            "rideId": rideId,
-            "status": "cancel"
-        };
-
-        http:Response response = new;
-        response.statusCode = 200;
-        response.setJsonPayload(successResponse);
-        return response;
-
+        return ride_management:cancelDriverRide(req);
     }
 
-    resource function get passengerOngoingRide(http:Request req)returns http:Response|error  {
+    resource function get passengerOngoingRide(http:Request req) returns http:Response|error {
         return ride_management:getPassengerOngoing(req);
     }
-    resource function get passengerCancelRide(http:Request req)returns http:Response|error  {
+
+    resource function get passengerCancelRide(http:Request req) returns http:Response|error {
         return ride_management:getPassengerCancel(req);
     }
-    resource function get passengerCompleteRide(http:Request req)returns http:Response|error  {
+
+    resource function get passengerCompleteRide(http:Request req) returns http:Response|error {
         return ride_management:getPassengerComplete(req);
     }
-    resource function post cancelBooking(http:Request req)returns http:Response|error  {
+
+    resource function post cancelBooking(http:Request req) returns http:Response|error {
         return ride_management:cancelPassengerBooking(req);
     }
 
-    resource function post initiateCall(http:Request req) returns  http:Response|error {
+    resource function post initiateCall(http:Request req) returns http:Response|error {
         return call:call(req);
     }
 

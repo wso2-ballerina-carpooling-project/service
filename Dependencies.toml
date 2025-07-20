@@ -363,6 +363,24 @@ modules = [
 ]
 
 [[package]]
+org = "ballerinax"
+name = "twilio"
+version = "5.0.0"
+dependencies = [
+	{org = "ballerina", name = "constraint"},
+	{org = "ballerina", name = "http"},
+	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "os"},
+	{org = "ballerina", name = "url"},
+	{org = "ballerinai", name = "observe"}
+]
+modules = [
+	{org = "ballerinax", packageName = "twilio", moduleName = "twilio"},
+	{org = "ballerinax", packageName = "twilio", moduleName = "twilio.mock"},
+	{org = "ballerinax", packageName = "twilio", moduleName = "twilio.oas"}
+]
+
+[[package]]
 org = "nalaka"
 name = "service"
 version = "0.1.0"
@@ -378,7 +396,8 @@ dependencies = [
 	{org = "ballerina", name = "time"},
 	{org = "ballerina", name = "url"},
 	{org = "ballerina", name = "uuid"},
-	{org = "ballerinai", name = "observe"}
+	{org = "ballerinai", name = "observe"},
+	{org = "ballerinax", name = "twilio"}
 ]
 modules = [
 	{org = "nalaka", packageName = "service", moduleName = "service"},
