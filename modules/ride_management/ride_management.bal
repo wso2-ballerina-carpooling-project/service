@@ -8,6 +8,7 @@ import ballerina/jwt;
 import ballerina/log;
 import ballerina/time;
 import ballerina/uuid;
+import 'service.report;
 
 configurable string publicKey = ?;
 
@@ -1376,6 +1377,7 @@ public function endride(http:Request req) returns http:Response|error {
         "rideId": rideId,
         "status": "start"
     };
+    report:paymentUpdate(rideId);
 
     http:Response response = new;
     response.statusCode = 200;

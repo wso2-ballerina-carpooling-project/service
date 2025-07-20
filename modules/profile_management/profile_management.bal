@@ -247,6 +247,8 @@ public function updateVehicle(http:Request req) returns http:Response|error {
     return response;
 }
 
+
+
 // function isAllowedImageType(string contentType) returns boolean {
 //     foreach string allowedType in ALLOWED_IMAGE_TYPES {
 //         if contentType.toLowerAscii() == allowedType {
