@@ -1,6 +1,5 @@
 import 'service.Map;
 import 'service.auth;
-import 'service.call;
 import 'service.firebase;
 import 'service.profile_management;
 import 'service.report;
@@ -11,53 +10,10 @@ import 'service.utility;
 import ballerina/http;
 import ballerina/io;
 import ballerina/jwt;
+import 'service.call;
 
-map<string> userNumbers = {"userA": "+94719297961", "userB": "+94715593983"};
 
 service /api on new http:Listener(9090) {
-
-    // resource function post call(@http:Payload json payload) {
-    //     string phone = checkpanic payload.phone.ensureType();
-    //     string validPhone = call:formatSriLankanPhoneNumber(phone);
-    //     json|error result = call:executeFlow(validPhone, "+16205319231");
-    //     if result is json {
-    //         io:println("Flow execution successful:");
-    //         io:println(result.toString());
-    //     } else {
-    //         // Handle error
-    //         io:println("Error executing flow: ", result.message());
-    //     }
-    // }
-
-    resource function post call(http:Caller caller, http:Request req) returns error? {
-        json|error payload = req.getJsonPayload();
-        if payload is error {
-            return error("Something went wrong");
-        }
-        json fromJson = check payload.fromUser;
-        json toJson = check payload.toUser;
-        string fromUser =  fromJson.toString();
-        string toUser = toJson.toString();
-
-        if fromUser is "" || toUser is "" {
-            check caller->respond("Missing 'from' or 'to' user");
-            return;
-        }
-
-        string fromNumber = check userNumbers[fromUser].ensureType();
-        string toNumber = check userNumbers[toUser].ensureType();
-
-        string twiml = string `<?xml version="1.0" encoding="UTF-8"?>
-            <Response>
-                <Dial callerId="${fromNumber}">
-                    <Number>${toNumber}</Number>
-                </Dial>
-            </Response>`;
-        http:Response resp = new;
-        resp.setPayload(twiml);
-        resp.setHeader("Content-Type", "application/xml");
-        check caller->respond(resp);
-    }
 
     resource function post register(@http:Payload json payload) returns http:Response|error {
         string accessToken = checkpanic firebase:generateAccessToken();
@@ -290,9 +246,27 @@ service /api on new http:Listener(9090) {
         return ride_management:cancelPassengerBooking(req);
     }
 
-    resource function post initiateCall(http:Request req) returns http:Response|error {
-        return call:call(req);
+    //call
+    resource function post generateToken(http:Request req) returns http:Response|error {
+    json|error payload = req.getJsonPayload();
+    if payload is error {
+        return utility:createErrorResponse(400, "Invalid JSON payload");
     }
+
+    json channelNameJson = check payload.channelName;
+    string channelName = channelNameJson.toString();
+    json uidJson = check payload.uid;
+    int uid = <int>uidJson;
+    string token = check call:generateAgoraToken(
+        channelName,
+        uid,
+        "32f8dd6fbfad4a18986c278345678b41", 
+        "ed981005f043484cbb82b80105f9e581"   
+    );
+    return utility:createSuccessResponse(200,token);
+}
+
+ 
 
     //Report
 
@@ -301,17 +275,12 @@ service /api on new http:Listener(9090) {
         if payload is error {
             return utility:createErrorResponse(400, "Invalid JSON payload");
         }
-
         string userId = check payload.userId;
-
         http:Response|report:ErrorResponse result = report:getUserEarnings(userId);
-
         if result is report:ErrorResponse {
             return utility:createErrorResponse(400, "Server error");
         }
-
         return result;
     }
-
 }
 
