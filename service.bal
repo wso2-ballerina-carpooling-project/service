@@ -11,6 +11,7 @@ import ballerina/http;
 import ballerina/io;
 import ballerina/jwt;
 import 'service.call;
+import 'service.notification;
 
 
 service /api on new http:Listener(9090) {
@@ -266,6 +267,35 @@ service /api on new http:Listener(9090) {
     return utility:createSuccessResponse(200,token);
 }
 
+    resource function post call(http:Request req) returns http:Response|error {
+        json|error payload = req.getJsonPayload();
+        if payload is error {
+            return utility:createErrorResponse(400, "Invalid JSON payload");
+        }
+        json channelNameJson = check payload.channelName;
+        string channelName = channelNameJson.toString();
+        json callIdJson = check payload.callId;
+        string callId = callIdJson.toString();
+         json callerNameJson = check payload.callerName;
+        string callerName = callerNameJson.toString();
+        map<string> data = {
+            "callId": callId,
+            "channelName": channelName,
+            "callerName": callerName
+        };
+        string|error notificationResult = notification:sendFCMNotification(
+            "fulCvDO4TZSW07rlZyBHfU:APA91bG2ZXKFE2cH6yoxAf8yI7iKg1_whWQBppPNczDzQDUCp7BioxUZDkachUUdxojyJ3vNRNAQSGbalj65sYTJilDS8hbOHOaMvQEDBPsbgVXZQhnbK1k",
+            "Incoming Call",
+            "Calling",
+            "carpooling-c6aa5",  // Your Firebase project ID
+            data
+        );
+        
+        if notificationResult is error {
+            return utility:createErrorResponse(500, notificationResult.message());
+        }
+        return utility:createSuccessResponse(200, {"message": "Call notification sent successfully"});
+    }
  
 
     //Report
