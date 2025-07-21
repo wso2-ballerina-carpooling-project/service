@@ -5,7 +5,7 @@ const int EXPIRATION_TIME_IN_SECONDS = 3600;
 const int VERSION = 1;
 
 
-public function generateAgoraToken(string channelName, int uid, string appId, string appCertificate) returns string|error {
+public function generateAgoraToken(string channelName, string uid, string appId, string appCertificate) returns string|error {
         time:Utc currentTime = time:utcNow();
         int currentTimestamp = currentTime[0];
         int privilegeExpiredTs = currentTimestamp + EXPIRATION_TIME_IN_SECONDS;

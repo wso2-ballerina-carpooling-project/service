@@ -256,7 +256,7 @@ service /api on new http:Listener(9090) {
     json channelNameJson = check payload.channelName;
     string channelName = channelNameJson.toString();
     json uidJson = check payload.uid;
-    int uid = <int>uidJson;
+    string uid =  uidJson.toString();
     string token = check call:generateAgoraToken(
         channelName,
         uid,
