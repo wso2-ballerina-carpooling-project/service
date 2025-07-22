@@ -274,9 +274,12 @@ service /api on new http:Listener(9090) {
         }
         json channelNameJson = check payload.channelName;
         string channelName = channelNameJson.toString();
+        json passengerIDJson = check payload.passengerId;
+        string passengerId = passengerIDJson.toString();
+        io:print(passengerId);
         json callIdJson = check payload.callId;
         string callId = callIdJson.toString();
-         json callerNameJson = check payload.callerName;
+        json callerNameJson = check payload.callerName;
         string callerName = callerNameJson.toString();
         map<string> data = {
             "callId": callId,
@@ -284,7 +287,7 @@ service /api on new http:Listener(9090) {
             "callerName": callerName
         };
         string|error notificationResult = notification:sendFCMNotification(
-            "fulCvDO4TZSW07rlZyBHfU:APA91bHRNtggPuJgeRwbPkCaAzwtJEsEC4VWIYYRWh08gTwQEDuYA_BQ5w8IuplpPYAuqWMdCpUNeuW4Ed3MotqXqqwaxPq95qO16zSpuTucVT0I0i3z23A",
+            passengerId,
             "Incoming Call",
             "Calling",
             "carpooling-c6aa5",  // Your Firebase project ID
