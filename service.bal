@@ -63,6 +63,14 @@ service /api on new http:Listener(9090) {
         return response;
     }
 
+    resource function post changeroletopassenger(http:Request req)  returns http:Response|error{
+        return profile_management:changeroletopassenger(req);
+    }
+
+    resource function post changeroletodriver(http:Request req) returns http:Response|error {
+        return profile_management:changeroletodriver(req);
+    }
+
     resource function post postRide(@http:Payload json payload, http:Request req) returns http:Response|error {
         string accessToken = checkpanic firebase:generateAccessToken();
         io:print("POST /rides - Creating new ride");

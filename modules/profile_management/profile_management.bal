@@ -248,6 +248,112 @@ public function updateVehicle(http:Request req) returns http:Response|error {
 }
 
 
+public function changeroletopassenger(http:Request req) returns http:Response|error{
+    string|error authHeader = req.getHeader("Authorization");
+    if authHeader is error {
+        return utility:createErrorResponse(401, "Authorization header missing");
+    }
+
+    string jwtToken = authHeader.substring(7);
+
+    jwt:Payload|error tokenPayload = ride_management:verifyToken(jwtToken);
+    if tokenPayload is error {
+        log:printError("JWT decode error: " + tokenPayload.message());
+        return utility:createErrorResponse(401, "Invalid token");
+    }
+
+    string userId = <string>tokenPayload["id"];
+
+    if userId is "" {
+        return utility:createErrorResponse(401, "User ID not found in token");
+    }
+    string|error accessToken = firebase:generateAccessToken();
+    if accessToken is error {
+        log:printError("Failed to generate access token", accessToken);
+        return utility:createErrorResponse(500, "Authentication failed");
+    }
+    map<json> updateData = {
+        "role":"passenger"
+    };
+    string actualDocumentId = userId;
+     json|error updateResult = firebase:mergeFirestoreDocument(
+        "carpooling-c6aa5",
+        accessToken,
+        "users",
+        actualDocumentId,
+        updateData
+    );
+
+    if updateResult is error {
+        log:printError("Error updating vehicle: " + updateResult.message());
+        return utility:createErrorResponse(500, "Failed to update vehicle details");
+    }
+    return utility:createSuccessResponse(200,"role change successfully");
+
+}
+
+
+
+public function changeroletodriver(http:Request req) returns http:Response|error{
+    string|error authHeader = req.getHeader("Authorization");
+    if authHeader is error {
+        return utility:createErrorResponse(401, "Authorization header missing");
+    }
+
+    string jwtToken = authHeader.substring(7);
+
+    jwt:Payload|error tokenPayload = ride_management:verifyToken(jwtToken);
+    if tokenPayload is error {
+        log:printError("JWT decode error: " + tokenPayload.message());
+        return utility:createErrorResponse(401, "Invalid token");
+    }
+
+    string userId = <string>tokenPayload["id"];
+    string|error accessToken = firebase:generateAccessToken();
+      if accessToken is error {
+        log:printError("Failed to generate access token", accessToken);
+        return utility:createErrorResponse(500, "Authentication failed");
+    }
+
+    
+
+    if userId is "" {
+        return utility:createErrorResponse(401, "User ID not found in token");
+    }
+     map<json>|error userDoc = firebase:getFirestoreDocumentById(
+            "carpooling-c6aa5",
+            accessToken,
+            "users",
+            userId
+    );
+     if userDoc is error {
+        return utility:createErrorResponse(500, "Failed to update role");
+    }
+    if(userDoc["driverDetails"] is null){
+        return utility:createSuccessResponse(201,"Request vehicle details");
+    }
+
+  
+    map<json> updateData = {
+        "role":"driver"
+    };
+    string actualDocumentId = userId;
+    json|error updateResult = firebase:mergeFirestoreDocument(
+        "carpooling-c6aa5",
+        accessToken,
+        "users",
+        actualDocumentId,
+        updateData
+    );
+
+    if updateResult is error {
+        log:printError("Error updating role: " + updateResult.message());
+        return utility:createErrorResponse(500, "Failed to update vehicle details");
+    }
+    return utility:createSuccessResponse(200,"role change successfully");
+
+}
+
 
 // function isAllowedImageType(string contentType) returns boolean {
 //     foreach string allowedType in ALLOWED_IMAGE_TYPES {
