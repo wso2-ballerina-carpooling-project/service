@@ -5,7 +5,7 @@
 
 [ballerina]
 dependencies-toml-version = "2"
-distribution-version = "2201.12.3"
+distribution-version = "2201.12.7"
 
 [[package]]
 org = "ballerina"
@@ -440,6 +440,8 @@ modules = [
 	{org = "nalaka", packageName = "service", moduleName = "service.profile_management"},
 	{org = "nalaka", packageName = "service", moduleName = "service.pwreset"},
 	{org = "nalaka", packageName = "service", moduleName = "service.report"},
+	{org = "nalaka", packageName = "service", moduleName = "service.reports_management"},
+	{org = "nalaka", packageName = "service", moduleName = "service.ride_admin_management"},
 	{org = "nalaka", packageName = "service", moduleName = "service.ride_management"},
 	{org = "nalaka", packageName = "service", moduleName = "service.utility"}
 ]
