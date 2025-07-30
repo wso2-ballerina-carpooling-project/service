@@ -12,6 +12,7 @@ import ballerina/io;
 import ballerina/jwt;
 import 'service.call;
 import 'service.notification;
+import 'service.passenger_management;
 import 'service.pwreset;
 import 'service.ride_admin_management as rideAdmin;
 import 'service.reports_management as reports;
@@ -435,5 +436,26 @@ resource function post drivers/reject(@http:Payload json payload) returns http:R
     return drivers:updateDriverStatus(payload, "rejected");
 }
 
+
+
+
+
+    // --- PASSENGER MANAGEMENT ENDPOINTS ---
+
+    # GET /api/passengers
+    resource function get passengers() returns http:Response|error {
+        return passenger_management:getPassengers();
+
+    }
+
+    # POST /api/passengers/approve
+    resource function post passengers/approve(@http:Payload json payload) returns http:Response|error {
+       return passenger_management:updatePassengerStatus(payload, "approved");
+    }
+
+    # POST /api/passengers/reject
+    resource function post passengers/reject(@http:Payload json payload) returns http:Response|error {
+       return passenger_management:updatePassengerStatus(payload, "rejected");
+    }
 
 }
