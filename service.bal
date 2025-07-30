@@ -13,7 +13,7 @@ import ballerina/jwt;
 import 'service.call;
 import 'service.notification;
 import 'service.passenger_management;
-
+import 'service.pwreset;
 
 
 service /api on new http:Listener(9090) {
@@ -63,6 +63,21 @@ service /api on new http:Listener(9090) {
     resource function post updateVehicle(@http:Payload json payload, http:Request req) returns http:Response|error {
         http:Response|error response = profile_management:updateVehicle(req);
         return response;
+    }
+
+    resource function post changeroletopassenger(http:Request req)  returns http:Response|error{
+        return profile_management:changeroletopassenger(req);
+    }
+
+    resource function post changeroletodriver(http:Request req) returns http:Response|error {
+        return profile_management:changeroletodriver(req);
+    }
+
+    resource function post forgot(http:Request req) returns http:Response|error {
+        return pwreset:forgotPassword(req);
+    }
+    resource function post resetpassword(http:Request req) returns http:Response|error {
+        return pwreset:resetPassword(req);
     }
 
     resource function post postRide(@http:Payload json payload, http:Request req) returns http:Response|error {
