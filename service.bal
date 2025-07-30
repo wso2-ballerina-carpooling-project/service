@@ -12,6 +12,7 @@ import ballerina/io;
 import ballerina/jwt;
 import 'service.call;
 import 'service.notification;
+import 'service.passenger_management;
 import 'service.pwreset;
 
 
@@ -331,5 +332,23 @@ service /api on new http:Listener(9090) {
         }
         return result;
     }
-}
 
+
+    // --- PASSENGER MANAGEMENT ENDPOINTS ---
+
+    # GET /api/passengers
+    resource function get passengers() returns http:Response|error {
+        return passenger_management:getPassengers();
+
+    }
+
+    # POST /api/passengers/approve
+    resource function post passengers/approve(@http:Payload json payload) returns http:Response|error {
+       return passenger_management:updatePassengerStatus(payload, "approved");
+    }
+
+    # POST /api/passengers/reject
+    resource function post passengers/reject(@http:Payload json payload) returns http:Response|error {
+       return passenger_management:updatePassengerStatus(payload, "rejected");
+    }
+}
