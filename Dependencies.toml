@@ -402,6 +402,7 @@ dependencies = [
 modules = [
 	{org = "nalaka", packageName = "service", moduleName = "service"},
 	{org = "nalaka", packageName = "service", moduleName = "service.Map"},
+	{org = "nalaka", packageName = "service", moduleName = "service.admin"},
 	{org = "nalaka", packageName = "service", moduleName = "service.auth"},
 	{org = "nalaka", packageName = "service", moduleName = "service.call"},
 	{org = "nalaka", packageName = "service", moduleName = "service.common"},
