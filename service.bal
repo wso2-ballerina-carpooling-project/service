@@ -15,6 +15,7 @@ import 'service.notification;
 import 'service.pwreset;
 import 'service.ride_admin_management as rideAdmin;
 import 'service.reports_management as reports;
+import 'service.driver_management as drivers;
 import ballerina/log;
 
 
@@ -410,5 +411,29 @@ service /api on new http:Listener(9090) {
         int year = check payload.year.ensureType();
         int month = check payload.month.ensureType();
         return reports:generateRideReport(year, month);
+
     }
+
+
+    // --- DRIVER MANAGEMENT ENDPOINTS ---
+
+# GET /api/drivers
+# Fetches all users with the 'driver' role and processes their data for the frontend.
+resource function get drivers() returns http:Response|error {
+    return drivers:getDrivers();
+}
+
+# POST /api/drivers/approve
+# Updates a specific driver's status to "approved".
+resource function post drivers/approve(@http:Payload json payload) returns http:Response|error {
+    return drivers:updateDriverStatus(payload, "approved");
+}
+
+# POST /api/drivers/reject
+# Updates a specific driver's status to "rejected".
+resource function post drivers/reject(@http:Payload json payload) returns http:Response|error {
+    return drivers:updateDriverStatus(payload, "rejected");
+}
+
+
 }
