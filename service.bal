@@ -21,8 +21,20 @@ import ballerina/log;
 
 
 
+// 1. Define the CORS configuration with the CORRECT port number.
+http:CorsConfig corsConfig = {
+    allowOrigins: ["http://localhost:3000"], // <-- THE FIX IS HERE
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"]
+};
 
+// 2. Apply the CORS configuration using the @http:ServiceConfig annotation.
+@http:ServiceConfig {
+    cors: corsConfig
+}
 service /api on new http:Listener(9090) {
+
+    // --- All your resource functions go here ---
 
     resource function post register(@http:Payload json payload) returns http:Response|error {
         string accessToken = checkpanic firebase:generateAccessToken();
