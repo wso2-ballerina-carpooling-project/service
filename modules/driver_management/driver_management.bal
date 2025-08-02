@@ -33,20 +33,21 @@ public function getDrivers() returns http:Response|error {
         
         string status = userData.hasKey("status") ? checkpanic userData.status.ensureType() : "pending";
 
-        // --- THE FINAL FIX: HANDLING THE TIMESTAMP CORRECTLY ---
+        // --- THIS IS THE FIX: ADDED THE EMAIL LOGIC ---
+        string email = userData.hasKey("email") ? checkpanic userData.email.ensureType() : "N/A";
+
+        // --- Date Handling Logic (already correct) ---
         string registeredDate = "N/A";
         if (userData.hasKey("createdAt") && userData.createdAt is map<json>) {
             map<json> tsMap = checkpanic userData.createdAt.ensureType();
             int seconds = checkpanic tsMap["_seconds"].ensureType();
-            
-            // Step 1: Create the Utc tuple directly from the seconds.
+
             time:Utc utcTime = [seconds, 0.0d];
 
-            // Step 2: Convert the Utc tuple to a calendar-based Civil record.
-            // This function should exist in your environment.
-            time:Civil civilTime = time:utcToCivil(utcTime);
 
-            // Step 3: Format the string. This part was already correct.
+            time:Civil civilTime = time:utcToCivil(utcTime);
+            
+
             registeredDate = string `${civilTime.year}-${civilTime.month.toString().padStart(2, "0")}-${civilTime.day.toString().padStart(2, "0")}`;
         }
 
@@ -69,6 +70,7 @@ public function getDrivers() returns http:Response|error {
         map<json> driverRecord = {
             id: id,
             name: name,
+            email: email, // --- THIS IS THE FIX: ADDED EMAIL TO THE RESPONSE ---
             vehicle: vehicle,
             registeredDate: registeredDate,
             status: status,
