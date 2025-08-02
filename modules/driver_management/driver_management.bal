@@ -2,7 +2,7 @@ import ballerina/http;
 import 'service.firebase;
 import 'service.utility;
 import ballerina/log;
-
+import ballerina/time; // The time module is correctly imported
 
 // This function fetches all users with the 'driver' role and processes them.
 public function getDrivers() returns http:Response|error {
@@ -15,10 +15,7 @@ public function getDrivers() returns http:Response|error {
         log:printError("Failed to retrieve drivers from Firestore", driverData);
         return utility:createErrorResponse(500, "Failed to retrieve drivers.");
     }
-
-    // --- Process the raw data into the clean format the frontend expects ---
     
-    // THIS IS THE FIRST MAJOR CHANGE: We build a json[] array directly.
     json[] drivers = [];
     int approvedCount = 0;
     int pendingCount = 0;
@@ -26,9 +23,32 @@ public function getDrivers() returns http:Response|error {
 
     foreach var userData in driverData {
         string id = checkpanic userData.id.ensureType();
-        string name = userData.hasKey("name") ? checkpanic userData.name.ensureType() : "N/A";
+        
+        string firstName = userData.hasKey("firstName") ? checkpanic userData.firstName.ensureType() : "";
+        string lastName = userData.hasKey("lastName") ? checkpanic userData.lastName.ensureType() : "";
+        string name = (firstName + " " + lastName).trim();
+        if name == "" {
+            name = "N/A";
+        }
+        
         string status = userData.hasKey("status") ? checkpanic userData.status.ensureType() : "pending";
-        string registeredDate = userData.hasKey("createdAt") ? checkpanic userData.createdAt.ensureType() : "";
+
+        // --- THE FINAL FIX: HANDLING THE TIMESTAMP CORRECTLY ---
+        string registeredDate = "N/A";
+        if (userData.hasKey("createdAt") && userData.createdAt is map<json>) {
+            map<json> tsMap = checkpanic userData.createdAt.ensureType();
+            int seconds = checkpanic tsMap["_seconds"].ensureType();
+            
+            // Step 1: Create the Utc tuple directly from the seconds.
+            time:Utc utcTime = [seconds, 0.0d];
+
+            // Step 2: Convert the Utc tuple to a calendar-based Civil record.
+            // This function should exist in your environment.
+            time:Civil civilTime = time:utcToCivil(utcTime);
+
+            // Step 3: Format the string. This part was already correct.
+            registeredDate = string `${civilTime.year}-${civilTime.month.toString().padStart(2, "0")}-${civilTime.day.toString().padStart(2, "0")}`;
+        }
 
         string vehicleModel = "N/A";
         string licenseNumber = "";
@@ -45,7 +65,7 @@ public function getDrivers() returns http:Response|error {
         
         string vehicle = string `${vehicleModel} - ${licenseNumber}`;
 
-        // THIS IS THE SECOND MAJOR CHANGE: We create a map<json> for each driver.
+
         map<json> driverRecord = {
             id: id,
             name: name,
@@ -55,10 +75,10 @@ public function getDrivers() returns http:Response|error {
             licenseUrl: licenseUrl,
             registrationUrl: registrationUrl
         };
-        // We push this map<json> into our json[] array. This is perfectly valid.
+        
         drivers.push(driverRecord);
 
-        // Calculate stats
+
         if status == "approved" {
             approvedCount += 1;
         } else if status == "pending" {
@@ -67,8 +87,8 @@ public function getDrivers() returns http:Response|error {
             rejectedCount += 1;
         }
     }
+    
 
-    // THIS IS THE FINAL FIX: `drivers` is already a json[] array. NO CASTING IS NEEDED.
     map<json> responseData = {
         drivers: drivers,
         stats: {
@@ -81,7 +101,7 @@ public function getDrivers() returns http:Response|error {
     return utility:createSuccessResponse(200, responseData);
 }
 
-// This function remains the same, as it was already correct.
+// The updateDriverStatus function does not need any changes.
 public function updateDriverStatus(json payload, string newStatus) returns http:Response|error {
     string|error driverId = payload.driverId.ensureType();
     if driverId is error {
