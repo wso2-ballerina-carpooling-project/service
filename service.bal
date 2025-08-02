@@ -341,15 +341,6 @@ service /api on new http:Listener(9090) {
     }
 
 
-
-
-    // --- RIDES ADMIN & REPORTS ENDPOINTS ---
-
-    # GET /api/rides/admin
-    # Fetches ride statistics. Expects query parameters: ?year=2024&month=7
-    
-        # GET /api/rides/admin
-    # Fetches ride statistics. Expects query parameters: ?year=2024&month=7
     resource function get rides/admin(http:Request req) returns http:Response|error {
         // Manually and safely extract query parameters from the request URL
         map<string|string[]> queryParams = req.getQueryParams();
@@ -406,8 +397,7 @@ service /api on new http:Listener(9090) {
         // Call the logic function with the validated parameters
         return rideAdmin:getRideStats(year, month);
     }
-    # POST /api/reports/rides
-    # Generates a downloadable CSV report.
+
    resource function post reports/rides(@http:Payload json payload) returns http:Response|error {
         int year = check payload.year.ensureType();
         int month = check payload.month.ensureType();
@@ -415,45 +405,31 @@ service /api on new http:Listener(9090) {
 
     }
 
+    resource function get drivers() returns http:Response|error {
+        return drivers:getDrivers();
+    }
 
-    // --- DRIVER MANAGEMENT ENDPOINTS ---
+    resource function post drivers/approve(@http:Payload json payload) returns http:Response|error {
+        return drivers:updateDriverStatus(payload, "approved");
+    }
 
-# GET /api/drivers
-# Fetches all users with the 'driver' role and processes their data for the frontend.
-resource function get drivers() returns http:Response|error {
-    return drivers:getDrivers();
-}
 
-# POST /api/drivers/approve
-# Updates a specific driver's status to "approved".
-resource function post drivers/approve(@http:Payload json payload) returns http:Response|error {
-    return drivers:updateDriverStatus(payload, "approved");
-}
-
-# POST /api/drivers/reject
-# Updates a specific driver's status to "rejected".
-resource function post drivers/reject(@http:Payload json payload) returns http:Response|error {
-    return drivers:updateDriverStatus(payload, "rejected");
-}
+    resource function post drivers/reject(@http:Payload json payload) returns http:Response|error {
+        return drivers:updateDriverStatus(payload, "rejected");
+    }
 
 
 
 
-
-    // --- PASSENGER MANAGEMENT ENDPOINTS ---
-
-    # GET /api/passengers
     resource function get passengers() returns http:Response|error {
         return passenger_management:getPassengers();
 
     }
 
-    # POST /api/passengers/approve
     resource function post passengers/approve(@http:Payload json payload) returns http:Response|error {
        return passenger_management:updatePassengerStatus(payload, "approved");
     }
 
-    # POST /api/passengers/reject
     resource function post passengers/reject(@http:Payload json payload) returns http:Response|error {
        return passenger_management:updatePassengerStatus(payload, "rejected");
     }
