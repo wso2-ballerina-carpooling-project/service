@@ -1,6 +1,9 @@
+import ballerina/io;
 import ballerina/log;
 import ballerina/time;
+import ballerina/regex;
 import 'service.firebase as firebase; 
+
 
 public function getBookedRidesWithinDay() returns int|error {
     string|error firebaseAccessToken = firebase:generateAccessToken();
@@ -159,89 +162,116 @@ public function getDriverCanceledRidesWithinDay() returns int|error {
 
 
 
+// public function getPendingUsersCount() returns int|error {
+//     string|error accessToken = firebase:generateAccessToken();
+//     if accessToken is error {
+//         log:printError("Failed to generate access token", accessToken);
+//         return error("Authentication failed");
+//     }
+
+//     // This is the correct "filter" to pass to your UNMODIFIED function.
+//     // This map represents the 'where' clause of the Firestore query.
+//     map<json> filterPayload = {
+//         "fieldFilter": {
+//             "field": { "fieldPath": "status" },
+//             "op": "EQUAL",
+//             "value": { "stringValue": "pending" }
+//         }
+//     };
+
+
+//     map<json>[]|error pendingUserDocs = firebase:queryFirestoreDocuments(
+//         "carpooling-c6aa5",
+//         accessToken,
+//         "users",
+//         filterPayload
+//     );
+
+//     if pendingUserDocs is error {
+//         log:printError("Failed to fetch users", pendingUserDocs);
+        
+//         log:printError("If you see a timeout error, ensure the Firestore index on the 'users' collection for the 'status' field is ENABLED.");
+//         return error("Failed to fetch user data");
+//     }
+
+//     return pendingUserDocs.length();
+// }
+
+// Add this import at the top of your admin.bal file with other imports
+
+
 public function getPendingUsersCount() returns int|error {
     string|error accessToken = firebase:generateAccessToken();
     if accessToken is error {
         log:printError("Failed to generate access token", accessToken);
         return error("Authentication failed");
     }
+    io:println("Generated access token: " + accessToken.substring(0, 10) + "...");
 
-    // This is the correct "filter" to pass to your UNMODIFIED function.
-    // This map represents the 'where' clause of the Firestore query.
-    map<json> filterPayload = {
-        "fieldFilter": {
-            "field": { "fieldPath": "status" },
-            "op": "EQUAL",
-            "value": { "stringValue": "pending" }
+    io:println("=== DEBUG: Querying pending users ===");
+    map<json> filter = {
+        "structuredQuery": {
+            "from": [{"collectionId": "users"}],
+            "where": {
+                "fieldFilter": {
+                    "field": {"fieldPath": "status"},
+                    "op": "EQUAL",
+                    "value": {"stringValue": "pending"}
+                }
+            }
         }
     };
 
-
-    map<json>[]|error pendingUserDocs = firebase:queryFirestoreDocuments(
+    map<json>[]|error result = firebase:queryFirestoreDocuments(
         "carpooling-c6aa5",
         accessToken,
         "users",
-        filterPayload
+        filter
     );
 
-    if pendingUserDocs is error {
-        log:printError("Failed to fetch users", pendingUserDocs);
-        
-        log:printError("If you see a timeout error, ensure the Firestore index on the 'users' collection for the 'status' field is ENABLED.");
-        return error("Failed to fetch user data");
+    if result is error {
+        log:printError("Filtered query failed", result);
+        io:println("Falling back to manual count due to error: " + result.message());
+
+        io:println("=== DEBUG: Falling back to fetching all users ===");
+        map<json>[]|error allUsersResult = firebase:queryFirestoreDocuments(
+            "carpooling-c6aa5",
+            accessToken,
+            "users",
+            {"structuredQuery": {"from": [{"collectionId": "users"}]}}
+        );
+
+        if allUsersResult is error {
+            log:printError("Cannot fetch any users", allUsersResult);
+            return error("Failed to fetch users: " + allUsersResult.message());
+        }
+
+        io:println("Total users found: " + allUsersResult.length().toString());
+        int manualCount = 0;
+        foreach var user in allUsersResult {
+            json|error statusField = user.status;
+
+            if statusField is string {
+                string statusValue = statusField;
+                io:println("User status: '" + statusValue + "'");
+
+                // --- STEP 2: REPLACE THE COMPARISON WITH THIS REGEX ---
+                // This checks for "pending" case-insensitively without using toLowerCase().
+                if regex:matches(statusValue.trim(), "(?i)^pending$") {
+                    manualCount += 1;
+                }
+
+            } else {
+                io:println("User missing status field or it's not a string.");
+            }
+        }
+        io:println("Manual pending count: " + manualCount.toString());
+        return manualCount;
     }
 
-    return pendingUserDocs.length();
-}
-
-
-// payment ststus
-type Payment record {|
-    string id;
-    decimal amount;
-    boolean isPaid;
-    string customerName;
-    // The date of the transaction in "YYYY-MM-DD" format.
-    string transactionDate; 
-|};
-
-// Defines the structure of the JSON response for payment statistics.
-type PaymentStats record {|
-    decimal completedPercentage;
-    decimal pendingPercentage;
-|};
-
-
-
- function calculatePaymentStats(Payment[] payments) returns PaymentStats {
-    int totalCount = payments.length();
-
-    // Prevent division by zero error if the list is empty.
-    if totalCount == 0 {
-        return {
-            completedPercentage: 0.0,
-            pendingPercentage: 0.0
-        };
-    }
-
-    // Use a query expression to count completed payments (isPaid = true).
-    int completedCount = (from Payment p in payments where p.isPaid select p).length();
-    
-    // Calculate pending payments.
-    int pendingCount = totalCount - completedCount;
-
-    // Cast integers to decimal for floating-point division. This is the corrected syntax.
-    decimal completedPercentage = (<decimal>completedCount / <decimal>totalCount) * 100;
-    decimal pendingPercentage = (<decimal>pendingCount / <decimal>totalCount) * 100;
-
-    return {
-        completedPercentage: completedPercentage.round(2),
-        pendingPercentage: pendingPercentage.round(2)
-    };
-
-    
+    io:println("Filtered pending users found: " + result.length().toString());
+    return result.length();
 }
 
 
 
-    

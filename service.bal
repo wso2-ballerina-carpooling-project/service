@@ -10,12 +10,11 @@ import 'service.ride_management;
 import 'service.ride_management as ride_management1;
 import 'service.utility;
 
-
 import ballerina/http;
 import ballerina/io;
 import ballerina/jwt;
 import ballerina/time;
-
+ // From your Config.toml
 
 type Payment record {
     string id;
@@ -33,7 +32,6 @@ type PaymentStats record {
     decimal completedPercentage;
     decimal pendingPercentage;
 };
-
 
 service /api on new http:Listener(9090) {
 
@@ -379,6 +377,20 @@ service /api on new http:Listener(9090) {
         return response;
     }
 
+    // resource function get admin/pendingUsers(http:Request req) returns http:Response|error {
+    //     io:println("=== Calling admin/pendingUsers endpoint ===");
+    //     int|error pendingUsersCount = admin:getPendingUsersCount();
+    //     if pendingUsersCount is error {
+    //         io:println("Error in getPendingUsersCount: " + pendingUsersCount.message());
+    //         return utility:createErrorResponse(500, "Failed to get pending users count");
+    //     }
+    //     io:println("Pending users count: " + pendingUsersCount.toString());
+    //     http:Response response = new;
+    //     response.statusCode = 200;
+    //     response.setJsonPayload({"pendingUsers": pendingUsersCount});
+    //     return response;
+    // }
+
     resource function get admin/pendingUsers(http:Request req) returns http:Response|error {
         io:println("=== Calling admin/pendingUsers endpoint ===");
         int|error pendingUsersCount = admin:getPendingUsersCount();
@@ -392,52 +404,136 @@ service /api on new http:Listener(9090) {
         response.setJsonPayload({"pendingUsers": pendingUsersCount});
         return response;
     }
+
+
+
+// Payment statistics endpoint
+
+resource function get payments/statistics(http:Caller caller, http:Request req) returns error? {
     
-  
-   
-          resource function post 'payment\-stats(@http:Payload Payment[] payments) returns PaymentStats|error {
+    // Get query parameters for year and month filtering (optional)
+    string? yearParam = req.getQueryParamValue("year");
+    string? monthParam = req.getQueryParamValue("month");
+    
+    json response = {
+        "success": false,
+        "message": "",
+        "data": []
+    };
 
-        // --- START OF THE FIX ---
-
-        // 1. Define an array that maps month numbers (index) to month names.
-        // Index 0 is unused, making index 1 = "January", etc.
-        string[] monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-        // 2. Get the current time as a Civil object.
-        time:Civil civilTime = time:utcToCivil(time:utcNow());
-
-        // 3. Get the month as an integer (1-12) and use it to look up the name in the array.
-        string currentMonth = monthNames[civilTime.month];
-
-        // --- END OF THE FIX ---
-
-
-        int totalCount = payments.length();
-
-        if totalCount == 0 {
-            PaymentStats stats = {
-                completedPercentage: 0.0,
-                pendingPercentage: 0.0,
-                completedCount: 0,
-                pendingCount: 0,
-                month: currentMonth
-            };
-            return stats;
+    do {
+        json[] stats = [];
+        
+        // If specific year and month provided, get stats for that month
+        if (yearParam is string && monthParam is string) {
+            int year = check int:fromString(yearParam);
+            int month = check int:fromString(monthParam);
+            json monthStats = check getMonthlyPaymentStats(year, month);
+            stats = [monthStats];
+        } else if (yearParam is string) {
+            // Get stats for entire year
+            int year = check int:fromString(yearParam);
+            stats = check getYearlyPaymentStats(year);
+        } else {
+            // Get stats for current year if no parameters provided
+            time:Utc currentTime = time:utcNow();
+            time:Civil civilTime = time:utcToCivil(currentTime);
+            stats = check getYearlyPaymentStats(civilTime.year);
         }
 
-        int completedCount = (from Payment p in payments where p.isPaid select p).length();
-        int pendingCount = totalCount - completedCount;
-
-        decimal completedPercentage = (<decimal>completedCount / <decimal>totalCount) * 100;
-        decimal pendingPercentage = (<decimal>pendingCount / <decimal>totalCount) * 100;
-
-        PaymentStats result = {
-            completedPercentage: completedPercentage.round(2),
-            pendingPercentage: pendingPercentage.round(2),
-            completedCount: completedCount,
-            pendingCount: pendingCount,
-            month: currentMonth
+        response = {
+            "success": true,
+            "message": "Payment statistics retrieved successfully",
+            "data": stats
         };
-        return result;
+
+    } on fail error e {
+        io:println("Error retrieving payment statistics: " + e.message());
+        response = {
+            "success": false,
+            "message": string `Error retrieving payment statistics: ${e.message()}`,
+            "data": []
+        };
+    }
+
+    http:Response httpResponse = new;
+    httpResponse.setJsonPayload(response);
+    httpResponse.setHeader("Content-Type", "application/json");
+    
+    error? result = caller->respond(httpResponse);
+    if (result is error) {
+        io:println("Error sending response: " + result.message());
+    }
+}
+
+}
+
+// Helper function to get payment statistics for a specific month
+function getMonthlyPaymentStats(int year, int month) returns json|error {
+    
+    // TODO: Replace this section with your actual Firestore query
+    // This is where you'll implement the Firestore logic to:
+    // 1. Query payments collection
+    // 2. Filter by date range
+    // 3. Count documents where isPaid = true vs isPaid = false
+    
+    int completedCount = 0;
+    int pendingCount = 0;
+    int totalCount = 0;
+    
+    // PLACEHOLDER IMPLEMENTATION - Replace with actual Firestore code
+    // Mock data for testing - replace with actual query results
+    totalCount = 100;
+    completedCount = 65;
+    pendingCount = 35;
+    
+    // Calculate percentages
+    float completedPercentage = totalCount > 0 ? (<float>completedCount / <float>totalCount) * 100.0 : 0.0;
+    float pendingPercentage = totalCount > 0 ? (<float>pendingCount / <float>totalCount) * 100.0 : 0.0;
+    
+    // Get month name
+    string monthName = getMonthName(month);
+    
+    return {
+        "year": year,
+        "month": month,
+        "monthName": monthName,
+        "completedCount": completedCount,
+        "pendingCount": pendingCount,
+        "totalCount": totalCount,
+        "completedPercentage": completedPercentage,
+        "pendingPercentage": pendingPercentage
+    };
+}
+
+// Helper function to get payment statistics for entire year (all 12 months)
+function getYearlyPaymentStats(int year) returns json[]|error {
+    json[] yearlyStats = [];
+    
+    // Get stats for each month of the year
+    foreach int month in 1...12 {
+        json monthStats = check getMonthlyPaymentStats(year, month);
+        yearlyStats.push(monthStats);
+    }
+    
+    return yearlyStats;
+}
+
+// Helper function to get month name
+function getMonthName(int month) returns string {
+    match month {
+        1 => { return "January"; }
+        2 => { return "February"; }
+        3 => { return "March"; }
+        4 => { return "April"; }
+        5 => { return "May"; }
+        6 => { return "June"; }
+        7 => { return "July"; }
+        8 => { return "August"; }
+        9 => { return "September"; }
+        10 => { return "October"; }
+        11 => { return "November"; }
+        12 => { return "December"; }
+        _ => { return "Unknown"; }
     }
 }
