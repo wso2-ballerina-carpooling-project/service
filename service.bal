@@ -1,6 +1,9 @@
 import 'service.Map;
+import 'service.admin;
 import 'service.auth;
+import 'service.call;
 import 'service.firebase;
+import 'service.notification;
 import 'service.profile_management;
 import 'service.report;
 import 'service.ride_management;
@@ -18,11 +21,45 @@ import 'service.ride_admin_management as rideAdmin;
 import 'service.reports_management as reports;
 import 'service.driver_management as drivers;
 import ballerina/log;
+import ballerina/time;
+
+ // From your Config.toml
+
+type Payment record {
+    string id;
+    boolean isPaid;
+    string createdAt;
+    string ride;
+    string user;
+    string amount;
+};
+
+type PaymentStats record {
+    string month;
+    int completedCount;
+    int pendingCount;
+    decimal completedPercentage;
+    decimal pendingPercentage;
+};
 
 
 
 
+
+// 1. Define the CORS configuration with the CORRECT port number.
+http:CorsConfig corsConfig = {
+    allowOrigins: ["http://localhost:3000"], // <-- THE FIX IS HERE
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"]
+};
+
+// 2. Apply the CORS configuration using the @http:ServiceConfig annotation.
+@http:ServiceConfig {
+    cors: corsConfig
+}
 service /api on new http:Listener(9090) {
+
+    // --- All your resource functions go here ---
 
     resource function post register(@http:Payload json payload) returns http:Response|error {
         string accessToken = checkpanic firebase:generateAccessToken();
@@ -272,23 +309,23 @@ service /api on new http:Listener(9090) {
 
     //call
     resource function post generateToken(http:Request req) returns http:Response|error {
-    json|error payload = req.getJsonPayload();
-    if payload is error {
-        return utility:createErrorResponse(400, "Invalid JSON payload");
-    }
+        json|error payload = req.getJsonPayload();
+        if payload is error {
+            return utility:createErrorResponse(400, "Invalid JSON payload");
+        }
 
-    json channelNameJson = check payload.channelName;
-    string channelName = channelNameJson.toString();
-    json uidJson = check payload.uid;
-    string uid =  uidJson.toString();
-    string token = check call:generateAgoraToken(
-        channelName,
-        uid,
-        "32f8dd6fbfad4a18986c278345678b41", 
-        "ed981005f043484cbb82b80105f9e581"   
-    );
-    return utility:createSuccessResponse(200,token);
-}
+        json channelNameJson = check payload.channelName;
+        string channelName = channelNameJson.toString();
+        json uidJson = check payload.uid;
+        string uid = uidJson.toString();
+        string token = check call:generateAgoraToken(
+                channelName,
+                uid,
+                "32f8dd6fbfad4a18986c278345678b41",
+                "ed981005f043484cbb82b80105f9e581"
+        );
+        return utility:createSuccessResponse(200, token);
+    }
 
     resource function post call(http:Request req) returns http:Response|error {
         json|error payload = req.getJsonPayload();
@@ -310,19 +347,18 @@ service /api on new http:Listener(9090) {
             "callerName": callerName
         };
         string|error notificationResult = notification:sendFCMNotification(
-            passengerId,
-            "Incoming Call",
-            "Calling",
-            "carpooling-c6aa5",  // Your Firebase project ID
-            data
+                passengerId,
+                "Incoming Call",
+                "Calling",
+                "carpooling-c6aa5", // Your Firebase project ID
+                data
         );
-        
+
         if notificationResult is error {
             return utility:createErrorResponse(500, notificationResult.message());
         }
         return utility:createSuccessResponse(200, {"message": "Call notification sent successfully"});
     }
- 
 
     //Report
 
@@ -397,7 +433,8 @@ service /api on new http:Listener(9090) {
         // Call the logic function with the validated parameters
         return rideAdmin:getRideStats(year, month);
     }
-
+    # POST /api/reports/rides
+    # Generates a downloadable CSV report.
    resource function post reports/rides(@http:Payload json payload) returns http:Response|error {
         int year = check payload.year.ensureType();
         int month = check payload.month.ensureType();
@@ -433,5 +470,6 @@ service /api on new http:Listener(9090) {
     resource function post passengers/reject(@http:Payload json payload) returns http:Response|error {
        return passenger_management:updatePassengerStatus(payload, "rejected");
     }
+
 
 }
