@@ -263,7 +263,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "oauth2"
-version = "2.14.0"
+version = "2.14.1"
 dependencies = [
 	{org = "ballerina", name = "cache"},
 	{org = "ballerina", name = "crypto"},
@@ -433,6 +433,7 @@ modules = [
 	{org = "nalaka", packageName = "service", moduleName = "service.auth"},
 	{org = "nalaka", packageName = "service", moduleName = "service.call"},
 	{org = "nalaka", packageName = "service", moduleName = "service.common"},
+	{org = "nalaka", packageName = "service", moduleName = "service.driver_management"},
 	{org = "nalaka", packageName = "service", moduleName = "service.firebase"},
 	{org = "nalaka", packageName = "service", moduleName = "service.firebase_auth"},
 	{org = "nalaka", packageName = "service", moduleName = "service.notification"},
