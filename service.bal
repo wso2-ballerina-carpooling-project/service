@@ -1,6 +1,9 @@
 import 'service.Map;
+import 'service.admin;
 import 'service.auth;
+import 'service.call;
 import 'service.firebase;
+import 'service.notification;
 import 'service.profile_management;
 import 'service.report;
 import 'service.ride_management;
@@ -18,6 +21,28 @@ import 'service.ride_admin_management as rideAdmin;
 import 'service.reports_management as reports;
 import 'service.driver_management as drivers;
 import ballerina/log;
+import ballerina/time;
+
+ // From your Config.toml
+
+type Payment record {
+    string id;
+    boolean isPaid;
+    string createdAt;
+    string ride;
+    string user;
+    string amount;
+};
+
+type PaymentStats record {
+    string month;
+    int completedCount;
+    int pendingCount;
+    decimal completedPercentage;
+    decimal pendingPercentage;
+};
+
+
 
 
 
@@ -284,23 +309,23 @@ service /api on new http:Listener(9090) {
 
     //call
     resource function post generateToken(http:Request req) returns http:Response|error {
-    json|error payload = req.getJsonPayload();
-    if payload is error {
-        return utility:createErrorResponse(400, "Invalid JSON payload");
-    }
+        json|error payload = req.getJsonPayload();
+        if payload is error {
+            return utility:createErrorResponse(400, "Invalid JSON payload");
+        }
 
-    json channelNameJson = check payload.channelName;
-    string channelName = channelNameJson.toString();
-    json uidJson = check payload.uid;
-    string uid =  uidJson.toString();
-    string token = check call:generateAgoraToken(
-        channelName,
-        uid,
-        "32f8dd6fbfad4a18986c278345678b41", 
-        "ed981005f043484cbb82b80105f9e581"   
-    );
-    return utility:createSuccessResponse(200,token);
-}
+        json channelNameJson = check payload.channelName;
+        string channelName = channelNameJson.toString();
+        json uidJson = check payload.uid;
+        string uid = uidJson.toString();
+        string token = check call:generateAgoraToken(
+                channelName,
+                uid,
+                "32f8dd6fbfad4a18986c278345678b41",
+                "ed981005f043484cbb82b80105f9e581"
+        );
+        return utility:createSuccessResponse(200, token);
+    }
 
     resource function post call(http:Request req) returns http:Response|error {
         json|error payload = req.getJsonPayload();
@@ -322,19 +347,18 @@ service /api on new http:Listener(9090) {
             "callerName": callerName
         };
         string|error notificationResult = notification:sendFCMNotification(
-            passengerId,
-            "Incoming Call",
-            "Calling",
-            "carpooling-c6aa5",  // Your Firebase project ID
-            data
+                passengerId,
+                "Incoming Call",
+                "Calling",
+                "carpooling-c6aa5", // Your Firebase project ID
+                data
         );
-        
+
         if notificationResult is error {
             return utility:createErrorResponse(500, notificationResult.message());
         }
         return utility:createSuccessResponse(200, {"message": "Call notification sent successfully"});
     }
- 
 
     //Report
 
@@ -418,6 +442,211 @@ service /api on new http:Listener(9090) {
         // Call the logic function with the validated parameters
         return rideAdmin:getRideStats(year, month);
     }
+
+
+    // FIXED ADMIN ENDPOINTS - Simple GET requests without JSON payload
+    // resource function get admin/bookedRides(http:Request req) returns http:Response|error {
+    //     io:println("=== Calling admin/bookedRides endpoint ===");
+    //     int|error bookedRides = admin:getBookedRidesWithinDay();
+    //     if bookedRides is error {
+    //         io:println("Error in getBookedRidesWithinDay: " + bookedRides.message());
+    //         return utility:createErrorResponse(500, "Failed to get booked rides");
+    //     }
+    //     io:println("Booked rides count: " + bookedRides.toString());
+    //     http:Response response = new;
+    //     response.statusCode = 200;
+    //     response.setJsonPayload({ "bookedRides": bookedRides });
+    //     return response;
+    // }
+
+    resource function get admin/bookedRides(http:Request req) returns http:Response|error {
+        io:println("=== Calling admin/bookedRides endpoint ===");
+        int|error bookedRides = admin:getBookedRidesWithinDay(); // Assuming this is in the same module
+        if bookedRides is error {
+            io:println("Error in getBookedRidesWithinDay: " + bookedRides.message());
+            return utility:createErrorResponse(500, "Failed to get booked rides");
+        }
+        io:println("Booked rides count: " + bookedRides.toString());
+        http:Response response = new;
+        response.statusCode = 200;
+        response.setJsonPayload({"bookedRides": bookedRides});
+        return response;
+    }
+
+    resource function get admin/canceledRides(http:Request req) returns http:Response|error {
+        io:println("=== Calling admin/canceledRides endpoint ===");
+        int|error canceledRides = admin:getDriverCanceledRidesWithinDay();
+        if canceledRides is error {
+            io:println("Error in getDriverCanceledRidesWithinDay: " + canceledRides.message());
+            return utility:createErrorResponse(500, "Failed to get canceled rides");
+        }
+        io:println("Canceled rides count: " + canceledRides.toString());
+        http:Response response = new;
+        response.statusCode = 200;
+        response.setJsonPayload({"canceledRides": canceledRides});
+        return response;
+    }
+
+    // resource function get admin/pendingUsers(http:Request req) returns http:Response|error {
+    //     io:println("=== Calling admin/pendingUsers endpoint ===");
+    //     int|error pendingUsersCount = admin:getPendingUsersCount();
+    //     if pendingUsersCount is error {
+    //         io:println("Error in getPendingUsersCount: " + pendingUsersCount.message());
+    //         return utility:createErrorResponse(500, "Failed to get pending users count");
+    //     }
+    //     io:println("Pending users count: " + pendingUsersCount.toString());
+    //     http:Response response = new;
+    //     response.statusCode = 200;
+    //     response.setJsonPayload({"pendingUsers": pendingUsersCount});
+    //     return response;
+    // }
+
+    resource function get admin/pendingUsers(http:Request req) returns http:Response|error {
+        io:println("=== Calling admin/pendingUsers endpoint ===");
+        int|error pendingUsersCount = admin:getPendingUsersCount();
+        if pendingUsersCount is error {
+            io:println("Error in getPendingUsersCount: " + pendingUsersCount.message());
+            return utility:createErrorResponse(500, "Failed to get pending users count");
+        }
+        io:println("Pending users count: " + pendingUsersCount.toString());
+        http:Response response = new;
+        response.statusCode = 200;
+        response.setJsonPayload({"pendingUsers": pendingUsersCount});
+        return response;
+    }
+
+
+
+// Payment statistics endpoint
+
+resource function get payments/statistics(http:Caller caller, http:Request req) returns error? {
+    
+    // Get query parameters for year and month filtering (optional)
+    string? yearParam = req.getQueryParamValue("year");
+    string? monthParam = req.getQueryParamValue("month");
+    
+    json response = {
+        "success": false,
+        "message": "",
+        "data": []
+    };
+
+    do {
+        json[] stats = [];
+        
+        // If specific year and month provided, get stats for that month
+        if (yearParam is string && monthParam is string) {
+            int year = check int:fromString(yearParam);
+            int month = check int:fromString(monthParam);
+            json monthStats = check getMonthlyPaymentStats(year, month);
+            stats = [monthStats];
+        } else if (yearParam is string) {
+            // Get stats for entire year
+            int year = check int:fromString(yearParam);
+            stats = check getYearlyPaymentStats(year);
+        } else {
+            // Get stats for current year if no parameters provided
+            time:Utc currentTime = time:utcNow();
+            time:Civil civilTime = time:utcToCivil(currentTime);
+            stats = check getYearlyPaymentStats(civilTime.year);
+        }
+
+        response = {
+            "success": true,
+            "message": "Payment statistics retrieved successfully",
+            "data": stats
+        };
+
+    } on fail error e {
+        io:println("Error retrieving payment statistics: " + e.message());
+        response = {
+            "success": false,
+            "message": string `Error retrieving payment statistics: ${e.message()}`,
+            "data": []
+        };
+    }
+
+    http:Response httpResponse = new;
+    httpResponse.setJsonPayload(response);
+    httpResponse.setHeader("Content-Type", "application/json");
+    
+    error? result = caller->respond(httpResponse);
+    if (result is error) {
+        io:println("Error sending response: " + result.message());
+    }
+}
+
+}
+
+// Helper function to get payment statistics for a specific month
+function getMonthlyPaymentStats(int year, int month) returns json|error {
+    
+    // TODO: Replace this section with your actual Firestore query
+    // This is where you'll implement the Firestore logic to:
+    // 1. Query payments collection
+    // 2. Filter by date range
+    // 3. Count documents where isPaid = true vs isPaid = false
+    
+    int completedCount = 0;
+    int pendingCount = 0;
+    int totalCount = 0;
+    
+    // PLACEHOLDER IMPLEMENTATION - Replace with actual Firestore code
+    // Mock data for testing - replace with actual query results
+    totalCount = 100;
+    completedCount = 65;
+    pendingCount = 35;
+    
+    // Calculate percentages
+    float completedPercentage = totalCount > 0 ? (<float>completedCount / <float>totalCount) * 100.0 : 0.0;
+    float pendingPercentage = totalCount > 0 ? (<float>pendingCount / <float>totalCount) * 100.0 : 0.0;
+    
+    // Get month name
+    string monthName = getMonthName(month);
+    
+    return {
+        "year": year,
+        "month": month,
+        "monthName": monthName,
+        "completedCount": completedCount,
+        "pendingCount": pendingCount,
+        "totalCount": totalCount,
+        "completedPercentage": completedPercentage,
+        "pendingPercentage": pendingPercentage
+    };
+}
+
+// Helper function to get payment statistics for entire year (all 12 months)
+function getYearlyPaymentStats(int year) returns json[]|error {
+    json[] yearlyStats = [];
+    
+    // Get stats for each month of the year
+    foreach int month in 1...12 {
+        json monthStats = check getMonthlyPaymentStats(year, month);
+        yearlyStats.push(monthStats);
+    }
+    
+    return yearlyStats;
+}
+
+// Helper function to get month name
+function getMonthName(int month) returns string {
+    match month {
+        1 => { return "January"; }
+        2 => { return "February"; }
+        3 => { return "March"; }
+        4 => { return "April"; }
+        5 => { return "May"; }
+        6 => { return "June"; }
+        7 => { return "July"; }
+        8 => { return "August"; }
+        9 => { return "September"; }
+        10 => { return "October"; }
+        11 => { return "November"; }
+        12 => { return "December"; }
+        _ => { return "Unknown"; }
+    }
+
     # POST /api/reports/rides
     # Generates a downloadable CSV report.
    resource function post reports/rides(@http:Payload json payload) returns http:Response|error {
@@ -469,5 +698,6 @@ resource function post drivers/reject(@http:Payload json payload) returns http:R
     resource function post passengers/reject(@http:Payload json payload) returns http:Response|error {
        return passenger_management:updatePassengerStatus(payload, "rejected");
     }
+
 
 }
