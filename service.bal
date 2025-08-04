@@ -13,7 +13,16 @@ import 'service.utility;
 import ballerina/http;
 import ballerina/io;
 import ballerina/jwt;
+import 'service.call;
+import 'service.notification;
+import 'service.passenger_management;
+import 'service.pwreset;
+import 'service.ride_admin_management as rideAdmin;
+import 'service.reports_management as reports;
+import 'service.driver_management as drivers;
+import ballerina/log;
 import ballerina/time;
+
  // From your Config.toml
 
 type Payment record {
@@ -33,7 +42,24 @@ type PaymentStats record {
     decimal pendingPercentage;
 };
 
+
+
+
+
+// 1. Define the CORS configuration with the CORRECT port number.
+http:CorsConfig corsConfig = {
+    allowOrigins: ["http://localhost:3000"], // <-- THE FIX IS HERE
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"]
+};
+
+// 2. Apply the CORS configuration using the @http:ServiceConfig annotation.
+@http:ServiceConfig {
+    cors: corsConfig
+}
 service /api on new http:Listener(9090) {
+
+    // --- All your resource functions go here ---
 
     resource function post register(@http:Payload json payload) returns http:Response|error {
         string accessToken = checkpanic firebase:generateAccessToken();
@@ -80,6 +106,21 @@ service /api on new http:Listener(9090) {
     resource function post updateVehicle(@http:Payload json payload, http:Request req) returns http:Response|error {
         http:Response|error response = profile_management:updateVehicle(req);
         return response;
+    }
+
+    resource function post changeroletopassenger(http:Request req)  returns http:Response|error{
+        return profile_management:changeroletopassenger(req);
+    }
+
+    resource function post changeroletodriver(http:Request req) returns http:Response|error {
+        return profile_management:changeroletodriver(req);
+    }
+
+    resource function post forgot(http:Request req) returns http:Response|error {
+        return pwreset:forgotPassword(req);
+    }
+    resource function post resetpassword(http:Request req) returns http:Response|error {
+        return pwreset:resetPassword(req);
     }
 
     resource function post postRide(@http:Payload json payload, http:Request req) returns http:Response|error {
@@ -332,7 +373,76 @@ service /api on new http:Listener(9090) {
             return utility:createErrorResponse(400, "Server error");
         }
         return result;
+  
     }
+
+
+
+
+    // --- RIDES ADMIN & REPORTS ENDPOINTS ---
+
+    # GET /api/rides/admin
+    # Fetches ride statistics. Expects query parameters: ?year=2024&month=7
+    
+        # GET /api/rides/admin
+    # Fetches ride statistics. Expects query parameters: ?year=2024&month=7
+    resource function get rides/admin(http:Request req) returns http:Response|error {
+        // Manually and safely extract query parameters from the request URL
+        map<string|string[]> queryParams = req.getQueryParams();
+
+        // --- CORRECTED YEAR PARAMETER LOGIC ---
+
+        if !queryParams.hasKey("year") {
+            return utility:createErrorResponse(400, "Missing required query parameter: year");
+        }
+        
+        string|string[] yearParam = queryParams.get("year");
+        string yearString;
+
+        // Use a type guard to handle both single string and array cases
+        if yearParam is string[] {
+            // If it's an array, take the first element
+            yearString = yearParam[0];
+        } else {
+            // If it's a single string, just use it
+            yearString = yearParam;
+        }
+
+        // Add a log to see exactly what we are trying to parse
+        log:printInfo("Attempting to parse year: '" + yearString + "'");
+        
+        int|error year = int:fromString(yearString);
+        if year is error {
+            return utility:createErrorResponse(400, "Invalid value for query parameter 'year'. Must be an integer.");
+        }
+
+        // --- CORRECTED MONTH PARAMETER LOGIC ---
+        
+        if !queryParams.hasKey("month") {
+            return utility:createErrorResponse(400, "Missing required query parameter: month");
+        }
+
+        string|string[] monthParam = queryParams.get("month");
+        string monthString;
+
+        if monthParam is string[] {
+            monthString = monthParam[0];
+        } else {
+            monthString = monthParam;
+        }
+
+        // Add a log to see exactly what we are trying to parse
+        log:printInfo("Attempting to parse month: '" + monthString + "'");
+        
+        int|error month = int:fromString(monthString);
+        if month is error {
+            return utility:createErrorResponse(400, "Invalid value for query parameter 'month'. Must be an integer.");
+        }
+
+        // Call the logic function with the validated parameters
+        return rideAdmin:getRideStats(year, month);
+    }
+
 
     // FIXED ADMIN ENDPOINTS - Simple GET requests without JSON payload
     // resource function get admin/bookedRides(http:Request req) returns http:Response|error {
@@ -536,4 +646,58 @@ function getMonthName(int month) returns string {
         12 => { return "December"; }
         _ => { return "Unknown"; }
     }
+
+    # POST /api/reports/rides
+    # Generates a downloadable CSV report.
+   resource function post reports/rides(@http:Payload json payload) returns http:Response|error {
+        int year = check payload.year.ensureType();
+        int month = check payload.month.ensureType();
+        return reports:generateRideReport(year, month);
+
+    }
+
+
+    // --- DRIVER MANAGEMENT ENDPOINTS ---
+
+# GET /api/drivers
+# Fetches all users with the 'driver' role and processes their data for the frontend.
+resource function get drivers() returns http:Response|error {
+    return drivers:getDrivers();
+}
+
+# POST /api/drivers/approve
+# Updates a specific driver's status to "approved".
+resource function post drivers/approve(@http:Payload json payload) returns http:Response|error {
+    return drivers:updateDriverStatus(payload, "approved");
+}
+
+# POST /api/drivers/reject
+# Updates a specific driver's status to "rejected".
+resource function post drivers/reject(@http:Payload json payload) returns http:Response|error {
+    return drivers:updateDriverStatus(payload, "rejected");
+}
+
+
+
+
+
+    // --- PASSENGER MANAGEMENT ENDPOINTS ---
+
+    # GET /api/passengers
+    resource function get passengers() returns http:Response|error {
+        return passenger_management:getPassengers();
+
+    }
+
+    # POST /api/passengers/approve
+    resource function post passengers/approve(@http:Payload json payload) returns http:Response|error {
+       return passenger_management:updatePassengerStatus(payload, "approved");
+    }
+
+    # POST /api/passengers/reject
+    resource function post passengers/reject(@http:Payload json payload) returns http:Response|error {
+       return passenger_management:updatePassengerStatus(payload, "rejected");
+    }
+
+
 }
