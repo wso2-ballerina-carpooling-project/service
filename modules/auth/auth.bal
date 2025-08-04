@@ -216,6 +216,69 @@ public function login(@http:Payload json payload, string accessToken) returns ht
     return utility:createSuccessResponse(200, response);
 }
 
+
+public function adminlogin(@http:Payload json payload, string accessToken) returns http:Response|error {
+    string? email = check payload.email.ensureType();
+    string? password = check payload.password.ensureType();
+
+    // Validate required fields
+    if email is "" || password is "" {
+        return utility:createErrorResponse(400, "Email and password are required");
+    }
+
+    map<json> emailFilter = {"email": email};
+    map<json>[]|error queryResult = firebase:queryFirestoreDocuments(
+            "carpooling-c6aa5",
+            accessToken,
+            "admins",
+            emailFilter
+        );
+
+    // if queryResult is error || (queryResult is map<json>[] && queryResult.length() == 0) {
+    //     return self.createErrorResponse(401, "Invalid email or password");
+    // }
+
+    if(queryResult is error){
+        return utility:createErrorResponse(500,"internal server error");
+    }
+    if(queryResult.length() == 0){
+        return utility:createErrorResponse(404,"user not found");
+    }
+
+    map<json> user;
+    user = queryResult[0];
+    io:print(user);
+
+    string storedPasswordHash = <string>user["password"];
+    string providedPasswordHash = hashPassword(check password.ensureType());
+
+    if storedPasswordHash != providedPasswordHash {
+        return utility:createErrorResponse(401, "Invalid email or password");
+    }
+
+ 
+
+    // Only allow login for admin or approved users
+    
+    // Generate authentication token
+    string|error authToken = generateAuthToken(user);
+    if(authToken is error){
+        io:print(authToken);
+        return utility:createErrorResponse(500,"Internel server error");
+
+    }
+    // Create response with user info and token
+    io:print(authToken);
+    map<json> response = {
+            "token": authToken
+        };
+    
+    jwt:Payload|error payloadToken = verifyToken(authToken);
+    io:print(payloadToken);
+    
+    return utility:createSuccessResponse(200, response);
+}
+
 public function verifyToken(string jwtToken) returns jwt:Payload|error {
 
     jwt:ValidatorConfig validatorConfig = {

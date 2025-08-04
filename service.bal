@@ -1,5 +1,4 @@
 import 'service.Map;
-import 'service.admin;
 import 'service.auth;
 import 'service.call;
 import 'service.firebase;
@@ -9,19 +8,16 @@ import 'service.report;
 import 'service.ride_management;
 import 'service.ride_management as ride_management1;
 import 'service.utility;
-
 import ballerina/http;
 import ballerina/io;
 import ballerina/jwt;
-import 'service.call;
-import 'service.notification;
 import 'service.passenger_management;
 import 'service.pwreset;
 import 'service.ride_admin_management as rideAdmin;
 import 'service.reports_management as reports;
 import 'service.driver_management as drivers;
 import ballerina/log;
-import ballerina/time;
+import 'service.admin;
 
  // From your Config.toml
 
@@ -70,6 +66,11 @@ service /api on new http:Listener(9090) {
     resource function post login(@http:Payload json payload) returns http:Response|error {
         string accessToken = checkpanic firebase:generateAccessToken();
         http:Response|error response = auth:login(payload, accessToken);
+        return response;
+    }
+    resource function post adminlogin(@http:Payload json payload) returns http:Response|error {
+        string accessToken = checkpanic firebase:generateAccessToken();
+        http:Response|error response = auth:adminlogin(payload, accessToken);
         return response;
     }
 
@@ -455,9 +456,6 @@ service /api on new http:Listener(9090) {
         return drivers:updateDriverStatus(payload, "rejected");
     }
 
-
-
-
     resource function get passengers() returns http:Response|error {
         return passenger_management:getPassengers();
 
@@ -469,6 +467,16 @@ service /api on new http:Listener(9090) {
 
     resource function post passengers/reject(@http:Payload json payload) returns http:Response|error {
        return passenger_management:updatePassengerStatus(payload, "rejected");
+    }
+
+    resource function get rides() returns http:Response|error{
+        return admin:rides();
+    }
+    resource function get users() returns http:Response|error{
+        return admin:users();
+    }
+    resource function get payments() returns http:Response|error{
+        return admin:payments();
     }
 
 
