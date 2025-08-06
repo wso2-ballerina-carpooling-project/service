@@ -144,7 +144,23 @@ public function postARide(@http:Payload json payload, string accessToken, http:R
     } else {
         log:printError("Error getting document: " + queryResult.message());
     }
+    map<json> queryFilter = {"status": "active","waytowork":rideData.waytowork,"date":rideData.date};
 
+
+    map<json>[]|error queryResult2 = firebase:queryFirestoreDocuments(
+        "carpooling-c6aa5",
+        accessToken,
+        "rides",
+        queryFilter
+    );
+
+    if(queryResult2 is error){
+        return utility:createErrorResponse(500,"Internal Server Error?");
+    }
+
+    if(queryResult2.length()!=0){
+        return utility:createErrorResponse(400, "You allready post a ride for Same day.");
+    }
     map<json> rideDocument = {
         "rideId": rideId,
         "driverId": userId,
