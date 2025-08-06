@@ -144,7 +144,7 @@ public function postARide(@http:Payload json payload, string accessToken, http:R
     } else {
         log:printError("Error getting document: " + queryResult.message());
     }
-    map<json> queryFilter = {"status": "active","waytowork":rideData.waytowork,"date":rideData.date};
+    map<json> queryFilter = {"status": "active","waytowork":rideData.waytowork,"date":rideData.date,"driverId":userId};
 
 
     map<json>[]|error queryResult2 = firebase:queryFirestoreDocuments(
