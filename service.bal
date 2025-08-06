@@ -18,6 +18,7 @@ import 'service.reports_management as reports;
 import 'service.driver_management as drivers;
 import ballerina/log;
 import 'service.admin;
+import 'service.user_report_management as userReports;
 
  // From your Config.toml
 
@@ -442,6 +443,13 @@ service /api on new http:Listener(9090) {
         return reports:generateRideReport(year, month);
 
     }
+          // --- THIS IS THE NEW, CORRECTLY PLACED ENDPOINT ---
+    # GET /api/rides/myreport
+    # Gets a JSON report of all rides for the authenticated user.
+    resource function get rides/myreport(http:Request req) returns http:Response|error {
+        return userReports:getUserRideReport(req);
+    }
+
 
     resource function get drivers() returns http:Response|error {
         return drivers:getDrivers();
@@ -478,6 +486,7 @@ service /api on new http:Listener(9090) {
     resource function get payments() returns http:Response|error{
         return admin:payments();
     }
+
 
 
 }
