@@ -1129,7 +1129,7 @@ public function cancelDriverRide(http:Request req) returns http:Response|error {
                 if passenger.hasKey("passengerId") {
                     string PID = check passenger["passengerId"].ensureType();
                     map<json>|error passengerDoc = firebase:getFirestoreDocumentById(
-                                "carpooling-c6aa5",
+                            "carpooling-c6aa5",
                             accessToken,
                             "users",
                             PID
