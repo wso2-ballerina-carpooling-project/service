@@ -955,11 +955,11 @@ public function cancelPassengerBooking(http:Request req) returns http:Response|e
     string accessToken = checkpanic firebase:generateAccessToken();
     map<json> queryFilter = {"rideId": rideId};
     // First, get the specific ride document
-    map<json>[]|error rideDoc = firebase:queryFirestoreDocuments(
-            "carpooling-c6aa5",
-            accessToken,
-            "rides",
-            queryFilter
+     map<json>|error rideDoc = firebase:getFirestoreDocumentById(
+        "carpooling-c6aa5",
+        accessToken,
+        "rides",
+        rideId
     );
 
     if rideDoc is error {
@@ -967,16 +967,16 @@ public function cancelPassengerBooking(http:Request req) returns http:Response|e
     }
 
     // Check if the ride exists and is active
-    if !rideDoc[0].hasKey("status") || rideDoc[0]["status"].toString() != "active" {
+    if !rideDoc.hasKey("status") || rideDoc["status"].toString() != "active" {
         return utility:createErrorResponse(400, "Ride is not active or does not exist");
     }
 
     // Check if passengers array exists
-    if !rideDoc[0].hasKey("passengers") {
+    if !rideDoc.hasKey("passengers") {
         return utility:createErrorResponse(400, "No passengers found in this ride");
     }
 
-    json passengersJson = rideDoc[0]["passengers"];
+    json passengersJson = rideDoc["passengers"];
     if !(passengersJson is json[]) {
         return utility:createErrorResponse(400, "Invalid passengers data structure");
     }
@@ -1019,15 +1019,15 @@ public function cancelPassengerBooking(http:Request req) returns http:Response|e
 
     // Get current seat count and increment by 1
     int currentSeat = 0;
-    if rideDoc[0].hasKey("seat") {
-        json seatJson = rideDoc[0]["seat"];
+    if rideDoc.hasKey("seat") {
+        json seatJson = rideDoc["seat"];
         if seatJson is int {
             currentSeat = seatJson;
         }
     }
     int newSeatCount = currentSeat + 1;
 
-    string actualDocumentId = <string>rideDoc[0]["id"];
+    string actualDocumentId = <string>rideDoc["id"];
 
     // Prepare update data
     map<json> updateData = {
@@ -1045,7 +1045,7 @@ public function cancelPassengerBooking(http:Request req) returns http:Response|e
             updateData
     );
 
-    string driverId = check rideDoc[0]["driverId"].ensureType();
+    string driverId = check rideDoc["driverId"].ensureType();
     json|error queryResult = firebase:getFirestoreDocumentById(
             "carpooling-c6aa5",
             accessToken,
