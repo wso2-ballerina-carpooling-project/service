@@ -1,52 +1,23 @@
 import ballerina/http;
 import 'service.firebase as firebase;
 import ballerina/log;
-import ballerina/time;
-// NOTE: The import for lang.string has been removed as we are no longer using it.
+// The 'strings' import is no longer needed for the corrected function.
 
-// This is the main function for generating the CSV report.
 // This is the main function for generating the CSV report.
 public function generateRideReport(int year, int month) returns http:Response|error {
     string accessToken = checkpanic firebase:generateAccessToken();
 
-    // --- WORKAROUND LOGIC STARTS HERE ---
-    // We will query for each status type individually because queryFirestoreDocuments
-    // in the firebase.bal module cannot handle an empty filter.
+    // --- WORKAROUND LOGIC ---
     map<json>[] allRides = [];
-
-    // Query 1: Get all "active" rides
     map<json>[]|error activeRides = firebase:queryFirestoreDocuments("carpooling-c6aa5", accessToken, "rides", {"status": "active"});
-    if activeRides is map<json>[] {
-        allRides.push(...activeRides);
-    } else {
-        log:printWarn("Could not retrieve active rides for report", activeRides);
-    }
-
-    // Query 2: Get all "start" rides
+    if activeRides is map<json>[] { allRides.push(...activeRides); }
     map<json>[]|error startRides = firebase:queryFirestoreDocuments("carpooling-c6aa5", accessToken, "rides", {"status": "start"});
-    if startRides is map<json>[] {
-        allRides.push(...startRides);
-    } else {
-        log:printWarn("Could not retrieve ongoing rides for report", startRides);
-    }
-
-    // Query 3: Get all "completed" rides
+    if startRides is map<json>[] { allRides.push(...startRides); }
     map<json>[]|error completedRides = firebase:queryFirestoreDocuments("carpooling-c6aa5", accessToken, "rides", {"status": "completed"});
-    if completedRides is map<json>[] {
-        allRides.push(...completedRides);
-    } else {
-        log:printWarn("Could not retrieve completed rides for report", completedRides);
-    }
-
-    // Query 4: Get all "cancel" rides
+    if completedRides is map<json>[] { allRides.push(...completedRides); }
     map<json>[]|error cancelledRidesData = firebase:queryFirestoreDocuments("carpooling-c6aa5", accessToken, "rides", {"status": "cancel"});
-    if cancelledRidesData is map<json>[] {
-        allRides.push(...cancelledRidesData);
-    } else {
-        log:printWarn("Could not retrieve cancelled rides for report", cancelledRidesData);
-    }
-    // --- WORKAROUND LOGIC ENDS HERE ---
-
+    if cancelledRidesData is map<json>[] { allRides.push(...cancelledRidesData); }
+    // --- END WORKAROUND ---
 
     // Step 2: Filter rides for the selected month and year
     map<json>[] filteredRides = from var ride in allRides
@@ -76,25 +47,39 @@ public function generateRideReport(int year, int month) returns http:Response|er
 
 // Helper function to check if a ride occurred in the given month and year
 function isRideInMonth(map<json> ride, int year, int month) returns boolean {
-    if !(ride.hasKey("createdAt") && ride.createdAt is string) {
+    if !(ride.hasKey("date") && ride.date is string) {
         return false;
     }
-    time:Utc|error rideTime = time:utcFromString(checkpanic ride.createdAt.ensureType());
-    if rideTime is error {
-        log:printWarn("Could not parse createdAt timestamp for a ride", rideTime);
+
+    string dateString = checkpanic ride.date.ensureType();
+    
+    // Manual Date Parsing using indexOf and substring
+    int? firstSlashIndex = dateString.indexOf("/");
+    if firstSlashIndex is () { return false; }
+
+    int? secondSlashIndex = dateString.indexOf("/", firstSlashIndex + 1);
+    if secondSlashIndex is () { return false; }
+
+    string monthString = dateString.substring(firstSlashIndex + 1, secondSlashIndex);
+    string yearString = dateString.substring(secondSlashIndex + 1);
+    
+    int|error rideMonth = int:fromString(monthString);
+    int|error rideYear = int:fromString(yearString);
+
+    if rideMonth is error || rideYear is error {
+        log:printWarn("Could not parse month or year from date string: " + dateString);
         return false;
     }
-    time:Civil civilTime = time:utcToCivil(rideTime);
-    return civilTime.year == year && civilTime.month == month;
+
+    return rideYear == year && rideMonth == month;
 }
+
 
 // Helper function to fetch driver and passenger names for the report
 function enrichRideData(map<json> ride, string accessToken, map<string> userCache) returns map<json>|error {
     map<json> enriched = ride.clone();
-
     string driverId = checkpanic ride.driverId.ensureType();
     enriched["driverName"] = check getUserName(driverId, accessToken, userCache);
-
     string[] passengerNames = [];
     if ride.hasKey("passengers") && ride.passengers is json[] {
         json[] passengersArray = checkpanic ride.passengers.ensureType();
@@ -109,6 +94,7 @@ function enrichRideData(map<json> ride, string accessToken, map<string> userCach
     return enriched;
 }
 
+// --- THIS IS THE CORRECTED FUNCTION ---
 // Helper function to get a user's name, with caching for improved performance
 function getUserName(string userId, string accessToken, map<string> userCache) returns string|error {
     string? cachedName = userCache[userId];
@@ -117,28 +103,46 @@ function getUserName(string userId, string accessToken, map<string> userCache) r
     }
 
     map<json>|error userData = firebase:getFirestoreDocumentById("carpooling-c6aa5", accessToken, "users", userId);
-    if userData is map<json> && userData.hasKey("name") {
-        string name = checkpanic userData.name.ensureType();
-        userCache[userId] = name;
-        return name;
+
+    // Check if the document was found and has both firstName and lastName fields
+    if userData is map<json> && userData.hasKey("firstName") && userData.hasKey("lastName") {
+        // Safely extract first and last names
+        string firstName = checkpanic userData.firstName.ensureType();
+        string lastName = checkpanic userData.lastName.ensureType();
+
+        // Combine them to create the full name
+        string fullName = firstName + " " + lastName;
+
+        // Cache the full name for future lookups
+        userCache[userId] = fullName;
+        return fullName;
     }
+    
+    // If anything fails (user not found, fields missing), return the default value
     return "Unknown User";
 }
 
-// THIS IS THE FULLY REWRITTEN AND CORRECTED FUNCTION
-// It no longer uses the complex 'strings:join' function.
+
+// This function creates the CSV string from the ride data.
 function createCsvString(map<json>[] data) returns string|error {
     string[] csvRows = [];
     // Define the header row for the CSV file
     csvRows.push("Ride ID,Date,Driver Name,Passenger Names,Status");
 
     foreach var ride in data {
-        string rideId = ride.hasKey("rideId") ? checkpanic ride.rideId.ensureType() : "N/A";
-        string date = ride.hasKey("date") ? checkpanic ride.date.ensureType() : "N/A";
-        string driverName = checkpanic ride.driverName.ensureType();
-        string status = ride.hasKey("status") ? checkpanic ride.status.ensureType() : "N/A";
+        string rideId = ride.hasKey("rideId") ? ride.get("rideId").toString() : "N/A";
+        string date = ride.hasKey("date") ? ride.get("date").toString() : "N/A";
+        string driverName = ride.hasKey("driverName") ? ride.get("driverName").toString() : "N/A";
+        string status = ride.hasKey("status") ? ride.get("status").toString() : "N/A";
         
-        string[] passengerNamesArray = checkpanic ride.passengerNames.ensureType();
+        string[] passengerNamesArray = [];
+        // Safely extract the array of passenger names
+        if ride.hasKey("passengerNames") {
+             json passengerNamesJson = ride.get("passengerNames");
+             if passengerNamesJson is string[] {
+                 passengerNamesArray = passengerNamesJson;
+             }
+        }
         
         // --- MANUAL STRING JOIN LOGIC (START) ---
         string passengersString = "";

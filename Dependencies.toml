@@ -5,7 +5,7 @@
 
 [ballerina]
 dependencies-toml-version = "2"
-distribution-version = "2201.12.3"
+distribution-version = "2201.12.7"
 
 [[package]]
 org = "ballerina"
@@ -87,7 +87,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "http"
-version = "2.14.2"
+version = "2.14.3"
 dependencies = [
 	{org = "ballerina", name = "auth"},
 	{org = "ballerina", name = "cache"},
@@ -445,6 +445,7 @@ modules = [
 	{org = "nalaka", packageName = "service", moduleName = "service.reports_management"},
 	{org = "nalaka", packageName = "service", moduleName = "service.ride_admin_management"},
 	{org = "nalaka", packageName = "service", moduleName = "service.ride_management"},
+	{org = "nalaka", packageName = "service", moduleName = "service.user_report_management"},
 	{org = "nalaka", packageName = "service", moduleName = "service.utility"}
 ]
 
