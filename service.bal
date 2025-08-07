@@ -18,7 +18,12 @@ import 'service.reports_management as reports;
 import 'service.driver_management as drivers;
 import ballerina/log;
 import 'service.admin;
+t
+import 'service.paymentStatus;
+import 'service.priceSetting;
+
 import 'service.user_report_management as userReports;
+
 
  // From your Config.toml
 
@@ -487,6 +492,21 @@ service /api on new http:Listener(9090) {
         return admin:payments();
     }
 
+    resource function post markAsPaid(@http:Payload json payload, http:Request req) returns http:Response|error {
+        string accessToken = check firebase:generateAccessToken();
+        http:Response|error response = paymentStatus:markPaymentAsPaid(payload, req, accessToken);
+        return response;
+    }
+
+    // Call the getFare function from our 'priceSetting' module.
+    resource function get fare() returns http:Response|error {
+        return priceSetting:getFare();
+    }
+
+    // This resource function handles PUT requests to the /fare endpoint.
+    resource function put fare(http:Request req) returns http:Response|error {
+        return priceSetting:updateFare(req);
+    }
 
 
 }
